@@ -104,7 +104,7 @@ export const PRESET_COLORS = [
 ];
 
 export const SAMPLE_COMPANY = {
-  username: "cong-ty-ban",
+  username: "viettel-telecom",
   companyName: "TẬP ĐOÀN CÔNG NGHIỆP - VIỄN THÔNG QUÂN ĐỘI",
   taxCode: "0100109106",
   address: "Số 1 Trần Hữu Dực, Phường Mỹ Đình 2, Nam Từ Liêm, Thành phố Hà Nội",

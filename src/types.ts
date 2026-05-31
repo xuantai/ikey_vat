@@ -13,6 +13,9 @@ export interface CompanyInfo {
   adminPassword?: string; // Mật khẩu quản trị
   newAdminPassword?: string; // Mật khẩu quản trị mới (khi cập nhật)
   customDomain?: string; // Custom domain trỏ về
+  faviconUrl?: string; // Favicon URL mới
+  thumbnailUrl?: string; // Thumbnail URL mới
+  websiteTitle?: string; // Website Title mới
   createdAt: string;
   updatedAt: string;
 }

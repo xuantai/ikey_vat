@@ -271,6 +271,9 @@ app.post("/api/companies", async (req, res) => {
       bankOwner: payload.bankOwner || "",
       primaryColor: payload.primaryColor || "#10B981", // default EMERALD
       customDomain: payload.customDomain || "",
+      faviconUrl: payload.faviconUrl || "",
+      thumbnailUrl: payload.thumbnailUrl || "",
+      websiteTitle: payload.websiteTitle || "",
       adminPassword: payload.adminPassword,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -540,6 +543,9 @@ app.put("/api/companies/:username", async (req, res) => {
       bankOwner: updatedData.bankOwner !== undefined ? updatedData.bankOwner : currentCompany.bankOwner,
       primaryColor: updatedData.primaryColor !== undefined ? updatedData.primaryColor : currentCompany.primaryColor,
       customDomain: updatedData.customDomain !== undefined ? updatedData.customDomain : currentCompany.customDomain,
+      faviconUrl: updatedData.faviconUrl !== undefined ? updatedData.faviconUrl : currentCompany.faviconUrl,
+      thumbnailUrl: updatedData.thumbnailUrl !== undefined ? updatedData.thumbnailUrl : currentCompany.thumbnailUrl,
+      websiteTitle: updatedData.websiteTitle !== undefined ? updatedData.websiteTitle : currentCompany.websiteTitle,
       adminPassword: updatedData.newAdminPassword || currentCompany.adminPassword, // support changing password
       updatedAt: new Date().toISOString(),
     };

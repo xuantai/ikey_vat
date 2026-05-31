@@ -28,7 +28,8 @@ import {
   ChevronRight,
   Globe,
   Heart,
-  RotateCcw
+  RotateCcw,
+  Image as ImageIcon
 } from "lucide-react";
 import { CompanyInfo, BankConfig, ApiResponse } from "./types";
 import { VIETNAMESE_BANKS, PRESET_COLORS, SAMPLE_COMPANY } from "./data";
@@ -95,8 +96,12 @@ export default function App() {
   
   // System Customizer States
   const [siteTitle, setSiteTitle] = useState<string>("");
+  const [globalSeoTitle, setGlobalSeoTitle] = useState<string>("");
   const [siteSubtitle, setSiteSubtitle] = useState<string>("");
   const [siteLogo, setSiteLogo] = useState<string>("");
+  const [useLogoAsFavicon, setUseLogoAsFavicon] = useState<boolean>(false);
+  const [globalFaviconUrl, setGlobalFaviconUrl] = useState<string>("");
+  const [globalThumbnailUrl, setGlobalThumbnailUrl] = useState<string>("");
   const [footerText, setFooterText] = useState<string>("");
   const [headerLink, setHeaderLink] = useState<string>("");
   const [footerLink, setFooterLink] = useState<string>("");
@@ -183,6 +188,9 @@ export default function App() {
   const [editPrimaryColor, setEditPrimaryColor] = useState<string>("");
   const [editNewPassword, setEditNewPassword] = useState<string>("");
   const [editCustomDomain, setEditCustomDomain] = useState<string>("");
+  const [editFaviconUrl, setEditFaviconUrl] = useState<string>("");
+  const [editThumbnailUrl, setEditThumbnailUrl] = useState<string>("");
+  const [editWebsiteTitle, setEditWebsiteTitle] = useState<string>("");
 
   // Bank display options
   const [showQRInputs, setShowQRInputs] = useState<boolean>(false);
@@ -257,6 +265,98 @@ export default function App() {
     window.addEventListener("popstate", handlePopState);
     return () => window.removeEventListener("popstate", handlePopState);
   }, []);
+
+  // Dynamically synchronize Title, Favicon, and Thumbnail based on current view route
+  useEffect(() => {
+    if (route === "view" && activeCompany) {
+      // 1. Title: websiteTitle || "Tạo trang thông tin xuất hóa đơn VAT"
+      const companyTitle = activeCompany.websiteTitle || "Tạo trang thông tin xuất hóa đơn VAT";
+      document.title = companyTitle;
+
+      // 2. Favicon: defaults to company's logoUrl!
+      const companyFavicon = activeCompany.logoUrl || globalFaviconUrl || siteLogo;
+      if (companyFavicon) {
+        try {
+          let faviconLink = document.querySelector("link[rel*='icon']") as HTMLLinkElement;
+          if (!faviconLink) {
+            faviconLink = document.createElement("link");
+            faviconLink.type = "image/x-icon";
+            faviconLink.rel = "shortcut icon";
+            document.head.appendChild(faviconLink);
+          }
+          faviconLink.href = companyFavicon;
+        } catch (e) {
+          console.error("Failed to update favicon dynamically:", e);
+        }
+      }
+
+      // 3. Thumbnail: defaults to a page screenshot preview
+      const currentUrl = `${window.location.origin}/${activeCompany.username}`;
+      const screenshotUrl = `https://api.microlink.io?url=${encodeURIComponent(currentUrl)}&screenshot=true&embed=screenshot.url`;
+      const companyThumbnail = activeCompany.logoUrl || globalThumbnailUrl || screenshotUrl;
+      
+      try {
+        let ogImage = document.querySelector("meta[property='og:image']") as HTMLMetaElement;
+        if (!ogImage) {
+          ogImage = document.createElement("meta");
+          ogImage.setAttribute("property", "og:image");
+          document.head.appendChild(ogImage);
+        }
+        ogImage.content = companyThumbnail;
+
+        let twitterImage = document.querySelector("meta[name='twitter:image']") as HTMLMetaElement;
+        if (!twitterImage) {
+          twitterImage = document.createElement("meta");
+          twitterImage.setAttribute("name", "twitter:image");
+          document.head.appendChild(twitterImage);
+        }
+        twitterImage.content = companyThumbnail;
+      } catch (e) {}
+
+    } else {
+      // Homepage or other routes
+      const defaultTitle = globalSeoTitle || "Tạo trang thông tin xuất hóa đơn VAT";
+      document.title = defaultTitle;
+
+      const defaultFavicon = globalFaviconUrl || siteLogo;
+      if (defaultFavicon) {
+        try {
+          let faviconLink = document.querySelector("link[rel*='icon']") as HTMLLinkElement;
+          if (!faviconLink) {
+            faviconLink = document.createElement("link");
+            faviconLink.rel = "shortcut icon";
+            document.head.appendChild(faviconLink);
+          }
+          faviconLink.href = defaultFavicon;
+        } catch (e) {}
+      }
+
+      // Homepage thumbnail: screenshots of home page as high quality fallback
+      const currentUrl = window.location.origin;
+      const screenshotUrl = `https://api.microlink.io?url=${encodeURIComponent(currentUrl)}&screenshot=true&embed=screenshot.url`;
+      const defaultThumbnail = globalThumbnailUrl || screenshotUrl || siteLogo;
+      
+      if (defaultThumbnail) {
+        try {
+          let ogImage = document.querySelector("meta[property='og:image']") as HTMLMetaElement;
+          if (!ogImage) {
+            ogImage = document.createElement("meta");
+            ogImage.setAttribute("property", "og:image");
+            document.head.appendChild(ogImage);
+          }
+          ogImage.content = defaultThumbnail;
+
+          let twitterImage = document.querySelector("meta[name='twitter:image']") as HTMLMetaElement;
+          if (!twitterImage) {
+            twitterImage = document.createElement("meta");
+            twitterImage.setAttribute("name", "twitter:image");
+            document.head.appendChild(twitterImage);
+          }
+          twitterImage.content = defaultThumbnail;
+        } catch (e) {}
+      }
+    }
+  }, [route, activeCompany, globalSeoTitle, siteTitle, siteLogo, globalFaviconUrl, globalThumbnailUrl]);
 
   // Synchronize Bank Account Owner in Registration Form if checked
   useEffect(() => {
@@ -461,8 +561,16 @@ export default function App() {
           localStorage.setItem("globalBaseUrl", d.globalBaseUrl);
         }
         setSiteTitle(d.siteTitle || "");
+        setGlobalSeoTitle(d.globalSeoTitle || "");
         setSiteSubtitle(d.siteSubtitle || "");
         setSiteLogo(d.siteLogo || "");
+        setGlobalFaviconUrl(d.globalFaviconUrl || "");
+        if (d.siteLogo && d.globalFaviconUrl === d.siteLogo) {
+          setUseLogoAsFavicon(true);
+        } else {
+          setUseLogoAsFavicon(false);
+        }
+        setGlobalThumbnailUrl(d.globalThumbnailUrl || "");
         setFooterText(d.footerText || "");
         setHeaderLink(d.headerLink || "");
         setFooterLink(d.footerLink || "");
@@ -486,12 +594,15 @@ export default function App() {
         body: JSON.stringify({
           globalBaseUrl: globalBaseUrl.trim(),
           siteTitle,
+          globalSeoTitle,
           siteSubtitle,
           siteLogo,
           footerText,
           headerLink,
           footerLink,
-          footerSecondaryLinks
+          footerSecondaryLinks,
+          globalFaviconUrl,
+          globalThumbnailUrl
         })
       });
       const json = await res.json();
@@ -546,7 +657,87 @@ export default function App() {
           ctx.drawImage(img, 0, 0, width, height);
           const base64 = canvas.toDataURL("image/jpeg", 0.85);
           setSiteLogo(base64);
+          if (useLogoAsFavicon) {
+            setGlobalFaviconUrl(base64);
+          }
           showToast("Đã xử lý logo site thành công!", "success");
+        }
+      };
+      img.src = event.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // Upload global site favicon
+  const handleGlobalFaviconUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 1 * 1024 * 1024) {
+      showToast("Ảnh favicon quá lớn! Vui lòng chọn ảnh dưới 1MB.", "error");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        const dim = 64; // favicons are typically small e.g. 64x64
+        canvas.width = dim;
+        canvas.height = dim;
+        const ctx = canvas.getContext("2d");
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, dim, dim);
+          const base64 = canvas.toDataURL("image/png");
+          setGlobalFaviconUrl(base64);
+          showToast("Đã xử lý favicon của toàn trang thành công!", "success");
+        }
+      };
+      img.src = event.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // Upload global site thumbnail
+  const handleGlobalThumbnailUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 3 * 1024 * 1024) {
+      showToast("Ảnh thumbnail quá lớn! Vui lòng chọn ảnh dưới 3MB.", "error");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        let width = img.width;
+        let height = img.height;
+        const max_dim = 800; // standard display high res thumbnail bounds
+
+        if (width > height) {
+          if (width > max_dim) {
+            height *= max_dim / width;
+            width = max_dim;
+          }
+        } else {
+          if (height > max_dim) {
+            width *= max_dim / height;
+            height = max_dim;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          const base64 = canvas.toDataURL("image/jpeg", 0.82);
+          setGlobalThumbnailUrl(base64);
+          showToast("Đã xử lý thumbnail của toàn trang thành công!", "success");
         }
       };
       img.src = event.target?.result as string;
@@ -583,12 +774,12 @@ export default function App() {
         setEditBankOwner(company.bankOwner || "");
         setEditPrimaryColor(company.primaryColor);
         setEditCustomDomain(company.customDomain || "");
+        setEditFaviconUrl(company.faviconUrl || "");
+        setEditThumbnailUrl(company.thumbnailUrl || "");
+        setEditWebsiteTitle(company.websiteTitle || "");
         setEditNewPassword("");
         setAdminUsernameInput(company.username);
         setShowEditQR(!!company.bankAccount);
-        
-        // Dynamic set title
-        document.title = `${company.companyName} | Xuất Hóa Đơn Quick-Copy`;
       } else {
         showToast(json.message || "Không thể tìm thấy liên kết.", "error");
         setRoute("home");
@@ -954,6 +1145,36 @@ export default function App() {
     reader.readAsDataURL(file);
   };
 
+  const handleFaviconUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 1 * 1024 * 1024) {
+      showToast("Ảnh quá lớn! Vui lòng chọn ảnh dưới 1MB.", "error");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      setEditFaviconUrl(event.target?.result as string);
+      showToast("Tải favicon thành công!", "success");
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleThumbnailUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) {
+      showToast("Ảnh quá lớn! Vui lòng chọn ảnh dưới 2MB.", "error");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      setEditThumbnailUrl(event.target?.result as string);
+      showToast("Tải ảnh bìa thumbnail truyền thông thành công!", "success");
+    };
+    reader.readAsDataURL(file);
+  };
+
   // Create profile submission
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1126,6 +1347,9 @@ export default function App() {
       bankOwner: editBankOwner,
       primaryColor: editPrimaryColor,
       customDomain: editCustomDomain,
+      faviconUrl: editFaviconUrl,
+      thumbnailUrl: editThumbnailUrl,
+      websiteTitle: editWebsiteTitle,
       newAdminPassword: editNewPassword || undefined
     };
 
@@ -1285,20 +1509,12 @@ export default function App() {
           )}
  
           <div className="flex items-center gap-2 shrink-0">
-            {/* SYSTEM ADMIN GEAR BUTTON */}
-            <button
-              onClick={() => {
-                window.history.pushState(null, "", "/admin");
-                document.title = "Cài đặt Hệ thống | AdminCP";
-                setRoute("globalAdmin");
-                setCurrentUsername("");
-                setActiveCompany(null);
-              }}
-              className={`p-2 rounded-lg border transition-all text-slate-500 hover:text-slate-900 cursor-pointer active:scale-95 shadow-sm shrink-0 ${route === "globalAdmin" ? "bg-indigo-50 text-indigo-700 border-indigo-200" : "bg-white border-slate-200 hover:bg-slate-50"}`}
-              title={t("Cài đặt Website tổng", "Site Administration")}
-            >
-              <Settings size={16} className={route === "globalAdmin" ? "animate-spin text-indigo-500" : ""} />
-            </button>
+            {/* SYSTEM ADMIN GEAR BUTTON - HIDDEN FOR SECURITY */}
+            {route === "globalAdmin" && (
+              <div className="p-2 rounded-lg border bg-indigo-50 text-indigo-700 border-indigo-200 shrink-0 shadow-sm">
+                <Settings size={16} className="animate-spin text-indigo-500" />
+              </div>
+            )}
 
             {/* SUPPORT DEVELOPER BUTTON */}
             <button
@@ -1330,13 +1546,12 @@ export default function App() {
               </button>
             )}
             
-            {route === "view" && activeCompany && (
-              <button 
-                onClick={() => navigateToSlug(activeCompany.username, "admin")}
-                className="flex items-center gap-1 text-xs text-white bg-slate-900 hover:bg-slate-800 font-bold uppercase tracking-wider px-3.5 py-2 rounded-lg transition-all shadow active:scale-95 shrink-0"
-              >
-                <Settings size={13} /> {t("Quản trị", "Admin")}
-              </button>
+            {/* COMPANY ADMIN BUTTON - HIDDEN FOR SECURITY FOR EXTERNAL VIEWERS */}
+            {route === "admin" && activeCompany && (
+              <div className="flex items-center gap-1 text-[11px] text-indigo-700 bg-indigo-50 font-black uppercase tracking-wider px-3 py-2 rounded-lg border border-indigo-150 shrink-0">
+                <Settings size={13} className="animate-spin text-indigo-500" />
+                <span className="hidden sm:inline">{t("Quản trị", "Admin")}</span>
+              </div>
             )}
           </div>
         </div>
@@ -1585,7 +1800,7 @@ export default function App() {
                       <input 
                         type="text" 
                         required
-                        placeholder="cong-ty-ban"
+                        placeholder="viettel-telecom"
                         value={tempUsername}
                         onChange={handleUsernameChange}
                         onBlur={handleUsernameBlur}
@@ -2242,7 +2457,7 @@ export default function App() {
                 {/* 1. MST Bento Card */}
                 <div 
                   onClick={() => copyToClipboard(activeCompany.taxCode, "Mã số thuế (MST)")}
-                  className={`p-3.5 rounded-xl border-2 cursor-pointer select-all group relative flex items-center justify-between transition-all duration-200 ${
+                  className={`p-3.5 rounded-xl border-2 cursor-pointer select-none group relative flex items-center justify-between transition-all duration-200 ${
                     copiedField === "Mã số thuế (MST)" 
                       ? "border-slate-900 bg-slate-950 text-white transform scale-[0.98]" 
                       : "bg-white/60 backdrop-blur-md border-white/80 shadow-sm hover:bg-white hover:border-slate-300 hover:shadow"
@@ -2279,7 +2494,7 @@ export default function App() {
                 {/* 2. TEN DAY DU */}
                 <div 
                   onClick={() => copyToClipboard(activeCompany.companyName, "Tên đầy đủ công ty")}
-                  className={`p-3.5 rounded-xl border-2 cursor-pointer select-all group relative flex items-center justify-between transition-all duration-200 ${
+                  className={`p-3.5 rounded-xl border-2 cursor-pointer select-none group relative flex items-center justify-between transition-all duration-200 ${
                     copiedField === "Tên đầy đủ công ty" 
                       ? "border-slate-900 bg-slate-950 text-white transform scale-[0.98]" 
                       : "bg-white/60 backdrop-blur-md border-white/80 shadow-sm hover:bg-white hover:border-slate-300 hover:shadow"
@@ -2316,7 +2531,7 @@ export default function App() {
                 {/* 3. DIA CHI TRU SO */}
                 <div 
                   onClick={() => copyToClipboard(activeCompany.address, "Địa chỉ xuất hóa đơn")}
-                  className={`p-3.5 rounded-xl border-2 cursor-pointer select-all group relative flex items-center justify-between transition-all duration-200 ${
+                  className={`p-3.5 rounded-xl border-2 cursor-pointer select-none group relative flex items-center justify-between transition-all duration-200 ${
                     copiedField === "Địa chỉ xuất hóa đơn" 
                       ? "border-slate-900 bg-slate-950 text-white transform scale-[0.98]" 
                       : "bg-white/60 backdrop-blur-md border-white/80 shadow-sm hover:bg-white hover:border-slate-300 hover:shadow"
@@ -2356,7 +2571,7 @@ export default function App() {
                   {activeCompany.email && (
                     <div 
                       onClick={() => copyToClipboard(activeCompany.email, "Email nhận hóa đơn")}
-                      className={`p-3.5 rounded-xl border-2 cursor-pointer select-all group relative flex items-center justify-between transition-all duration-200 ${
+                      className={`p-3.5 rounded-xl border-2 cursor-pointer select-none group relative flex items-center justify-between transition-all duration-200 ${
                         copiedField === "Email nhận hóa đơn" 
                           ? "border-slate-900 bg-slate-950 text-white" 
                           : "bg-white/60 backdrop-blur-md border-white/80 shadow-sm hover:bg-white hover:border-slate-300 hover:shadow"
@@ -2395,7 +2610,7 @@ export default function App() {
                   {activeCompany.phone && (
                     <div 
                       onClick={() => copyToClipboard(activeCompany.phone, "Số điện thoại")}
-                      className={`p-3.5 rounded-xl border-2 cursor-pointer select-all group relative flex items-center justify-between transition-all duration-200 ${
+                      className={`p-3.5 rounded-xl border-2 cursor-pointer select-none group relative flex items-center justify-between transition-all duration-200 ${
                         copiedField === "Số điện thoại" 
                           ? "border-slate-900 bg-slate-950 text-white" 
                           : "bg-white/60 backdrop-blur-md border-white/80 shadow-sm hover:bg-white hover:border-slate-300 hover:shadow"
@@ -2447,7 +2662,7 @@ export default function App() {
                     {/* Copyable bank details info grid */}
                     <div className="bg-white/80 backdrop-blur-sm p-3.5 rounded-xl border border-slate-200/60 shadow-sm space-y-2">
                       <div 
-                        className="flex justify-between items-center text-sm border-b border-slate-100 pb-2 cursor-pointer select-all hover:bg-slate-50/50 p-1 rounded transition-colors" 
+                        className="flex justify-between items-center text-sm border-b border-slate-100 pb-2 cursor-pointer select-none hover:bg-slate-50/50 p-1 rounded transition-colors" 
                         onClick={() => copyToClipboard(getBankDetail(activeCompany.bankName)?.shortName || "KHÁC", "Tên ngân hàng")}
                       >
                         <span className="text-slate-450 font-extrabold uppercase text-[9px]">{t("Ngân hàng", "Bank")}</span>
@@ -2458,7 +2673,7 @@ export default function App() {
                       </div>
                       
                       <div 
-                        className="flex justify-between items-center text-sm border-b border-slate-150 pb-2 cursor-pointer select-all hover:bg-slate-50/50 p-1 rounded transition-colors" 
+                        className="flex justify-between items-center text-sm border-b border-slate-150 pb-2 cursor-pointer select-none hover:bg-slate-50/50 p-1 rounded transition-colors" 
                         onClick={() => copyToClipboard(activeCompany.bankAccount, "Số tài khoản")}
                       >
                         <span className="text-slate-450 font-extrabold uppercase text-[9px]">{t("Số tài khoản", "Account Number")}</span>
@@ -2469,7 +2684,7 @@ export default function App() {
                       </div>
 
                       <div 
-                        className="flex justify-between items-center text-sm cursor-pointer select-all hover:bg-slate-50/50 p-1 rounded transition-colors" 
+                        className="flex justify-between items-center text-sm cursor-pointer select-none hover:bg-slate-50/50 p-1 rounded transition-colors" 
                         onClick={() => copyToClipboard(activeCompany.bankOwner, "Chủ tài khoản")}
                       >
                         <span className="text-slate-450 font-extrabold uppercase text-[9px]">{t("Tên tài khoản", "Account Name")}</span>
@@ -2554,7 +2769,7 @@ export default function App() {
                       <input 
                         type="text" 
                         required
-                        placeholder="Ví dụ: cong-ty-ban" 
+                        placeholder="Ví dụ: viettel-telecom" 
                         value={adminUsernameInput}
                         onChange={(e) => setAdminUsernameInput(e.target.value.toLowerCase().trim())}
                         className="w-full py-2.5 px-4 rounded-lg border border-slate-200 bg-slate-50 text-sm focus:border-indigo-600 focus:bg-white focus:outline-none font-mono text-slate-950"
@@ -2716,9 +2931,9 @@ export default function App() {
 
                         {/* Logo Uploading interface moved to Info Tab */}
                         <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 mt-4">
-                          <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">Logo đơn vị mới</label>
+                          <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5 font-sans">Logo đơn vị mới</label>
                           <div className="mt-2 flex items-center gap-4">
-                            <div className="w-16 h-16 rounded-lg bg-white border border-slate-200 flex items-center justify-center p-1 shrink-0">
+                            <div className="w-16 h-16 rounded-lg bg-white border border-slate-200 flex items-center justify-center p-1 shrink-0 animate-fade-in">
                               {editLogoUrl ? (
                                 <img src={editLogoUrl} alt="Logo" referrerPolicy="no-referrer" className="max-w-full max-h-full object-contain" />
                               ) : (
@@ -2732,9 +2947,24 @@ export default function App() {
                                 onChange={(e) => handleLogoUpload(e, "edit")}
                                 className="block w-full text-xs text-slate-500 file:mr-2 file:py-1 file:px-3 file:rounded file:border file:border-slate-200 file:text-xs file:font-semibold file:bg-white file:text-indigo-600 hover:file:bg-slate-50 cursor-pointer"
                               />
-                              <p className="text-[9px] text-slate-400">Được tối ưu chuyển hóa Base64 lưu trực tiếp an toàn. Màu chủ đạo sẽ tự động cập nhật theo logo.</p>
+                              <p className="text-[9px] text-slate-400 font-medium">Được tối ưu chuyển hóa Base64 lưu trực tiếp an toàn. Màu chủ đạo sẽ tự động cập nhật theo logo.</p>
                             </div>
                           </div>
+                        </div>
+
+                        {/* Custom Web Title Section */}
+                        <div className="bg-indigo-50/40 p-4 rounded-xl border border-indigo-100 mt-4 animate-fade-in shadow-sm">
+                          <label className="block text-[10px] font-bold text-indigo-700 uppercase tracking-widest mb-1.5 font-sans">Tiêu đề Website riêng (Page Title SEO)</label>
+                          <input 
+                            type="text" 
+                            value={editWebsiteTitle}
+                            onChange={(e) => setEditWebsiteTitle(e.target.value)}
+                            placeholder={`${editCompanyName || "Doanh nghiệp"} - Thông tin xuất hóa đơn`}
+                            className="w-full bg-white border border-indigo-200/60 px-3 py-2.5 rounded-lg text-sm text-slate-800 focus:outline-none focus:border-indigo-600 transition-all font-medium"
+                          />
+                          <p className="text-[9px] text-slate-450 mt-1.5 font-medium leading-relaxed">
+                            Cấu hình tiêu đề hiển thị trên trình duyệt khi khách vào xem trang này. Nếu không thiết lập, hệ thống hiển thị mặc định: <span className="font-semibold text-indigo-700">Tạo trang thông tin xuất hóa đơn VAT</span>.
+                          </p>
                         </div>
                       </div>
                     )}
@@ -3030,7 +3260,7 @@ export default function App() {
 
         {/* ==================== 4. GLOBAL SYSTEM ADMIN PANEL ==================== */}
         {route === "globalAdmin" && isAdminLoggedIn && (
-          <div className="flex-1 flex flex-col items-center justify-center p-6 bg-slate-50 min-h-[calc(100vh-140px)]">
+          <div className="flex-1 flex flex-col items-center justify-center p-6 bg-slate-50 min-h-[calc(100vh-140px)] border-t border-slate-100">
             <div className="max-w-xl w-full bg-white rounded-2xl p-6 md:p-8 shadow-xl border border-slate-200">
               <h2 className="text-xl font-bold mb-6 text-slate-800 border-b border-slate-100 pb-4">{t("Cài đặt Website tổng", "Site Administration")}</h2>
               
@@ -3062,7 +3292,7 @@ export default function App() {
                             <input 
                               type="file" 
                               accept="image/*" 
-                              className="hidden" 
+                              className="hidden"
                               onChange={handleSiteLogoUpload} 
                             />
                           </label>
@@ -3071,11 +3301,15 @@ export default function App() {
                               type="button"
                               onClick={() => {
                                 setSiteLogo("");
+                                if (useLogoAsFavicon) {
+                                  setGlobalFaviconUrl("");
+                                  setUseLogoAsFavicon(false);
+                                }
                                 showToast("Đã gỡ logo site!", "info");
                               }}
-                              className="border border-red-200 text-red-600 hover:bg-red-50 text-[11px] font-bold px-3 py-1.5 rounded-lg transition-all active:scale-[0.98]"
+                              className="border border-red-200 text-red-650 hover:bg-red-50 text-[11px] font-bold px-3 py-1.5 rounded-lg transition-all active:scale-[0.98]"
                             >
-                              {t("Xóa logo", "Remove Logo")}
+                              ✕ Gỡ logo
                             </button>
                           )}
                         </div>
@@ -3098,18 +3332,105 @@ export default function App() {
                     />
                     <p className="text-[10px] text-slate-450 mt-1 font-medium">Phục vụ xuất Excel hoặc sinh mã QR hoá đơn (Ví dụ: https://{appDomain}/vat)</p>
                   </div>
+
+                  {/* Favicon Settings Section */}
+                  <div className="pt-4 border-t border-slate-200/50">
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-550 mb-1.5 uppercase tracking-wider animate-fade-in">
+                        Favicon toàn trang
+                      </label>
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-white border border-slate-200 rounded-lg flex items-center justify-center overflow-hidden shrink-0 shadow-sm p-1.5">
+                          {globalFaviconUrl ? (
+                            <img src={globalFaviconUrl} alt="Favicon" className="max-w-full max-h-full object-contain" referrerPolicy="no-referrer" />
+                          ) : (
+                            <ImageIcon size={18} className="text-slate-400" />
+                          )}
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex gap-1.5">
+                            <label className={`bg-white border text-slate-700 hover:bg-slate-50 text-[10px] font-extrabold px-2.5 py-1.5 rounded cursor-pointer transition-all active:scale-[0.98] shadow-sm uppercase tracking-wide ${useLogoAsFavicon ? 'opacity-50 border-slate-200 pointer-events-none' : 'border-slate-250'}`}>
+                              Chọn ảnh
+                              <input 
+                                type="file" 
+                                accept="image/*" 
+                                className="hidden" 
+                                disabled={useLogoAsFavicon}
+                                onChange={handleGlobalFaviconUpload} 
+                              />
+                            </label>
+                            {globalFaviconUrl && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setGlobalFaviconUrl("");
+                                  setUseLogoAsFavicon(false);
+                                  showToast("Đã gỡ favicon!", "info");
+                                }}
+                                className="border border-red-100 text-red-655 hover:bg-red-50 text-[10px] font-extrabold px-2 py-1.5 rounded transition-all active:scale-[0.98] uppercase tracking-wide cursor-pointer"
+                              >
+                                Gỡ
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Sync Option with a short label */}
+                      <div className="mt-2 text-left">
+                        <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                          <input
+                            type="checkbox"
+                            checked={useLogoAsFavicon}
+                            onChange={(e) => {
+                              const checked = e.target.checked;
+                              setUseLogoAsFavicon(checked);
+                              if (checked) {
+                                if (siteLogo) {
+                                  setGlobalFaviconUrl(siteLogo);
+                                  showToast("Đã đồng bộ Favicon với Logo của trang!", "success");
+                                } else {
+                                  showToast("Vui lòng tải Logo của trang lên trước.", "error");
+                                  setUseLogoAsFavicon(false);
+                                }
+                              } else {
+                                setGlobalFaviconUrl("");
+                              }
+                            }}
+                            className="w-3.5 h-3.5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                          />
+                          <span className="text-[10px] text-slate-600 font-bold">Dùng luôn logo</span>
+                        </label>
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
-                {/* 2. KHỐI CẤU HÌNH HEADER (TIÊU ĐỀ & ĐƯỜNG DẪN) */}
+                {/* 2. KHỐI CẤU HÌNH SEO & HEADER */}
                 <div className="p-4 bg-slate-50 border border-slate-200/60 rounded-2xl space-y-4">
                   <div className="flex items-center gap-2 border-b border-slate-150 pb-2 mb-2">
-                    <span className="text-sm font-bold text-slate-800">2. {t("Cấu hình Header (Đầu trang)", "Header Settings")}</span>
+                    <span className="text-sm font-bold text-slate-800">2. {t("Cấu hình SEO & Header", "SEO & Header Settings")}</span>
                   </div>
 
-                  {/* Header Title configuration field */}
+                  {/* Page Title SEO configuration field */}
                   <div>
-                    <label className="block text-[10px] font-bold text-slate-550 mb-1.5 uppercase tracking-wider">
-                      {t("Tiêu đề Header", "Site Header Title")}
+                    <label className="block text-[10px] font-bold text-indigo-650 mb-1.5 uppercase tracking-wider font-sans">
+                      Cấu hình Tiêu đề Website riêng (Page Title SEO)
+                    </label>
+                    <input 
+                      type="text" 
+                      className="w-full text-sm border border-slate-200 rounded-xl p-3 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors font-medium text-slate-850"
+                      value={globalSeoTitle}
+                      onChange={(e) => setGlobalSeoTitle(e.target.value)}
+                      placeholder="Tạo trang thông tin xuất hóa đơn VAT"
+                    />
+                    <p className="text-[10px] text-slate-455 mt-1 font-medium">Tiêu đề chính hiển thị trên tab trình duyệt (Mặc định: Tạo trang thông tin xuất hóa đơn VAT)</p>
+                  </div>
+
+                  {/* Brand Header Name configuration field */}
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-550 mb-1.5 uppercase tracking-wider font-sans">
+                      Tên hiển thị góc trái Header (Brand Name)
                     </label>
                     <input 
                       type="text" 
@@ -3118,7 +3439,7 @@ export default function App() {
                       onChange={(e) => setSiteTitle(e.target.value)}
                       placeholder={appDomain}
                     />
-                    <p className="text-[10px] text-slate-455 mt-1 font-medium">Tên góc trái Header (Mặc định: {appDomain})</p>
+                    <p className="text-[10px] text-slate-455 mt-1 font-medium">Tên thương hiệu chữ in hoa góc trái của thanh Header (Mặc định: {appDomain})</p>
                   </div>
 
                   {/* Header Subtitle configuration field */}
