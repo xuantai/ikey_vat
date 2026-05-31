@@ -1800,7 +1800,7 @@ export default function App() {
                       <input 
                         type="text" 
                         required
-                        placeholder="viettel-telecom"
+                        placeholder="cong-ty-cua-ban"
                         value={tempUsername}
                         onChange={handleUsernameChange}
                         onBlur={handleUsernameBlur}
@@ -2769,7 +2769,7 @@ export default function App() {
                       <input 
                         type="text" 
                         required
-                        placeholder="Ví dụ: viettel-telecom" 
+                        placeholder="Ví dụ: cong-ty-cua-ban" 
                         value={adminUsernameInput}
                         onChange={(e) => setAdminUsernameInput(e.target.value.toLowerCase().trim())}
                         className="w-full py-2.5 px-4 rounded-lg border border-slate-200 bg-slate-50 text-sm focus:border-indigo-600 focus:bg-white focus:outline-none font-mono text-slate-950"
@@ -3848,6 +3848,7 @@ export default function App() {
           </div>
         </div>
       )}
+
     </div>
   );
 }

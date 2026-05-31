@@ -145,6 +145,7 @@ app.get("/api/system-settings", async (req, res) => {
       data: {
         globalBaseUrl: "",
         siteTitle: "",
+        globalSeoTitle: "",
         siteSubtitle: "",
         siteLogo: "",
         footerText: "",
