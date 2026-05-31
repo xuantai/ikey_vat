@@ -1,0 +1,6 @@
+{
+  "name": "Invoice Billing Information Page Generator",
+  "description": "Nền tảng tạo trang thông tin xuất hóa đơn cho các công ty, cho phép tạo link theo username, hỗ trợ tính năng chạm để sao chép thông tin nhanh chóng trên di động, hiển thị logo và mã QR thanh toán cùng tùy chỉnh tông màu chủ đạo.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

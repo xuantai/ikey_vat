@@ -1,0 +1,95 @@
+{
+  "entities": {
+    "CompanyInfo": {
+      "title": "CompanyInfo",
+      "description": "Thông tin hóa đơn của doanh nghiệp",
+      "type": "object",
+      "properties": {
+        "username": {
+          "type": "string",
+          "description": "Slug/Username của công ty làm URL đại diện"
+        },
+        "companyName": {
+          "type": "string",
+          "description": "Tên đầy đủ công ty"
+        },
+        "taxCode": {
+          "type": "string",
+          "description": "Mã số thuế của công ty"
+        },
+        "address": {
+          "type": "string",
+          "description": "Địa chỉ chính thức"
+        },
+        "email": {
+          "type": "string",
+          "description": "Email nhận hóa đơn điện tử"
+        },
+        "phone": {
+          "type": "string",
+          "description": "Số điện thoại liên hệ"
+        },
+        "logoUrl": {
+          "type": "string",
+          "description": "Ảnh logo công ty dạng URL hoặc Base64"
+        },
+        "bankName": {
+          "type": "string",
+          "description": "Mã nhận dạng ngân hàng"
+        },
+        "bankAccount": {
+          "type": "string",
+          "description": "Số tài khoản ngân hàng"
+        },
+        "bankOwner": {
+          "type": "string",
+          "description": "Tên chủ tài khoản ngân hàng viết hoa không dấu"
+        },
+        "primaryColor": {
+          "type": "string",
+          "description": "Hệ màu chủ đạo dạng mã Hex"
+        },
+        "adminPassword": {
+          "type": "string",
+          "description": "Mật khẩu quản trị để chỉnh sửa"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Thời gian tạo"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Thời gian cập nhật gần nhất"
+        }
+      },
+      "required": ["username", "companyName", "taxCode", "address", "adminPassword", "createdAt", "updatedAt"]
+    },
+    "SystemSettings": {
+      "title": "SystemSettings",
+      "description": "Cấu hình hệ thống tổng",
+      "type": "object",
+      "properties": {
+        "globalBaseUrl": { "type": "string" },
+        "siteTitle": { "type": "string" },
+        "siteSubtitle": { "type": "string" },
+        "siteLogo": { "type": "string" },
+        "footerText": { "type": "string" },
+        "headerLink": { "type": "string" },
+        "footerLink": { "type": "string" },
+        "footerSecondaryLinks": { "type": "array" }
+      }
+    }
+  },
+  "firestore": {
+    "/companies/{username}": {
+      "schema": "CompanyInfo",
+      "description": "Danh sách các trang thông tin xuất hóa đơn công ty"
+    },
+    "/settings/{document}": {
+      "schema": "SystemSettings",
+      "description": "Cấu hình hệ thống tổng"
+    }
+  }
+}
