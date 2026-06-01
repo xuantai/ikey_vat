@@ -96,6 +96,7 @@ export default function App() {
   const [loading, setLoading] = useState<boolean>(true);
   const [isInitialRouteLoading, setIsInitialRouteLoading] = useState<boolean>(true);
   const [isCapturing, setIsCapturing] = useState<boolean>(false);
+  const [capturedImageUrl, setCapturedImageUrl] = useState<string | null>(null);
   
   // System Customizer States
   const [siteTitle, setSiteTitle] = useState<string>("");
@@ -577,11 +578,12 @@ export default function App() {
       const captureWidth = node.offsetWidth;
       const captureOptions = {
         cacheBust: true,
-        width: captureWidth,
+        width: 390,
         height: captureHeight,
         style: {
           transform: "scale(1)",
-          width: `${captureWidth}px`,
+          transformOrigin: "top left",
+          width: "390px",
           margin: "0",
         },
         quality: 1, // Max quality for JPEG
@@ -597,36 +599,21 @@ export default function App() {
         ? `thong-tin-nhan-hoa-don-${activeCompany.username}.jpg` 
         : "thong-tin-nhan-hoa-don.jpg";
 
-      // Try the Web Share API first for mobile devices - this opens the native share sheet
-      // which includes "Save Image" to Photos album.
-      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-      if (isMobile && navigator.share) {
-        try {
-          const res = await fetch(dataUrl);
-          const blob = await res.blob();
-          const file = new File([blob], filename, { type: 'image/jpeg' });
-          if (navigator.canShare && navigator.canShare({ files: [file] })) {
-             await navigator.share({
-               files: [file],
-               title: 'Thông tin hóa đơn',
-             });
-             showToast("Đã chia sẻ/lưu ảnh thành công!", "success");
-             return;
-          }
-        } catch (e) {
-          console.log("Web Share API failed or aborted", e);
-          if (e instanceof Error && e.name === "AbortError") {
-             return; // User cancelled the share dialog
-          }
-        }
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+      
+      if (isIOS) {
+        // Safari and iOS browsers block automated downloads and Web Share APIs from non-synchronous user interactions.
+        // The most reliable way to save an image to the iOS Photos album is giving them the image to long-press.
+        setCapturedImageUrl(dataUrl);
+        showToast("Hãy chạm giữ vào ảnh để lưu!", "success");
+      } else {
+        // Desktop and Android handle standard downloads perfectly
+        const link = document.createElement("a");
+        link.download = filename;
+        link.href = dataUrl;
+        link.click();
+        showToast("Đã tải ảnh hóa đơn xuống thành công!", "success");
       }
-
-      const link = document.createElement("a");
-      link.download = filename;
-      link.href = dataUrl;
-      link.click();
-
-      showToast("Đã tải ảnh hóa đơn xuống thành công!", "success");
     } catch (error) {
       console.error("Lỗi khi chuyển đổi HTML thành hình ảnh:", error);
       showToast("Lỗi khi lưu ảnh hóa đơn. Vui lòng thử lại!", "error");
@@ -1580,11 +1567,28 @@ export default function App() {
       {toast.visible && (
         <div className="fixed top-6 right-6 left-6 md:left-auto md:w-96 z-50 animate-bounce shadow-2xl p-4 rounded-xl border flex items-center gap-3 backdrop-blur-md bg-white/95 border-gray-100">
           <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
-            toast.type === "success" ? "bg-emerald-100 text-emerald-600" : "bg-red-100 text-red-600"
+            toast.type === "success" ? "bg-emerald-100 text-emerald-600" : toast.type === "info" ? "bg-blue-100 text-blue-600" : "bg-red-100 text-red-600"
           }`}>
-            {toast.type === "success" ? <Check size={18} /> : <span>✖</span>}
+            {toast.type === "success" ? <Check size={18} /> : toast.type === "info" ? <Download size={18} /> : <span>✖</span>}
           </div>
           <p className="text-sm font-medium text-gray-800">{toast.message}</p>
+        </div>
+      )}
+
+      {/* iOS Modal View for captured image */}
+      {capturedImageUrl && (
+        <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex flex-col items-center justify-center p-6 animate-fade-in">
+          <p className="text-white font-medium mb-4 text-center">Ảnh đã sẵn sàng. Chạm và giữ vào ảnh, sau đó chọn <b>"Lưu hình ảnh"</b>.</p>
+          <div className="relative w-full max-w-sm rounded-[33px] overflow-hidden shadow-2xl">
+            <img src={capturedImageUrl} alt="Captured invoice" className="w-full h-auto object-contain"  crossOrigin="anonymous" referrerPolicy="no-referrer" />
+          </div>
+          <button 
+            type="button" 
+            onClick={() => setCapturedImageUrl(null)}
+            className="mt-8 px-6 py-3 bg-white/20 hover:bg-white/30 border border-white/30 text-white rounded-xl font-medium transition-colors"
+          >
+            Đóng
+          </button>
         </div>
       )}
 
@@ -1601,7 +1605,7 @@ export default function App() {
             >
               <div className="h-10 w-10 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center transition-all group-hover:scale-105 group-hover:bg-indigo-100 shadow-sm shrink-0 overflow-hidden border border-indigo-100/30">
                 {siteLogo ? (
-                  <img src={siteLogo} alt="Logo" className="max-w-full max-h-full object-contain" referrerPolicy="no-referrer" />
+                  <img src={siteLogo} alt="Logo" className="max-w-full max-h-full object-contain" referrerPolicy="no-referrer"  crossOrigin="anonymous" />
                 ) : (
                   <Building2 size={22} className="stroke-[2.5]" />
                 )}
@@ -1623,7 +1627,7 @@ export default function App() {
             <div className="flex items-center gap-2.5 cursor-pointer select-none group" onClick={navigateToHome}>
               <div className="h-10 w-10 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center transition-all group-hover:scale-105 group-hover:bg-indigo-100 shadow-sm shrink-0 overflow-hidden border border-indigo-100/30">
                 {siteLogo ? (
-                  <img src={siteLogo} alt="Logo" className="max-w-full max-h-full object-contain" referrerPolicy="no-referrer" />
+                  <img src={siteLogo} alt="Logo" className="max-w-full max-h-full object-contain" referrerPolicy="no-referrer"  crossOrigin="anonymous" />
                 ) : (
                   <Building2 size={22} className="stroke-[2.5]" />
                 )}
@@ -1751,7 +1755,7 @@ export default function App() {
                                   <div className="flex items-center gap-2.5 min-w-0">
                                     {c.logoUrl && (
                                       <div className="w-8 h-8 rounded-lg bg-indigo-50 border border-indigo-100/30 flex items-center justify-center shrink-0">
-                                        <img src={c.logoUrl} alt="" className="w-5 h-5 object-contain" />
+                                        <img src={c.logoUrl} alt="" className="w-5 h-5 object-contain"  crossOrigin="anonymous" referrerPolicy="no-referrer" />
                                       </div>
                                     )}
                                     <div className="min-w-0">
@@ -2298,10 +2302,10 @@ export default function App() {
                     {regLogoUrl ? (
                       <>
                         <div className="absolute top-1/4 left-1/4 w-[120%] h-[120%] -translate-x-1/2 -translate-y-1/2 opacity-30 blur-[100px] mix-blend-multiply">
-                          <img src={regLogoUrl} className="w-full h-full object-cover" alt="" />
+                          <img src={regLogoUrl} className="w-full h-full object-cover" alt=""  crossOrigin="anonymous" referrerPolicy="no-referrer" />
                         </div>
                         <div className="absolute bottom-0 right-0 w-[120%] h-[120%] translate-x-1/3 translate-y-1/3 opacity-20 blur-[80px] mix-blend-multiply">
-                          <img src={regLogoUrl} className="w-full h-full object-cover" alt="" />
+                          <img src={regLogoUrl} className="w-full h-full object-cover" alt=""  crossOrigin="anonymous" referrerPolicy="no-referrer" />
                         </div>
                       </>
                     ) : (
@@ -2349,7 +2353,7 @@ export default function App() {
                         <div className="relative z-10 flex flex-col items-center w-full">
                           {regLogoUrl && (
                             <div className="w-16 h-16 bg-white/90 rounded-2xl border border-slate-200 flex items-center justify-center p-2 mb-3 overflow-hidden shadow-sm shrink-0" style={{ borderColor: regPrimaryColor }}>
-                              <img src={regLogoUrl} alt="Logo preview" referrerPolicy="no-referrer" className="max-w-full max-h-full object-contain mix-blend-multiply" />
+                              <img src={regLogoUrl} alt="Logo preview" referrerPolicy="no-referrer" className="max-w-full max-h-full object-contain mix-blend-multiply"  crossOrigin="anonymous" />
                             </div>
                           )}
 
@@ -2488,7 +2492,7 @@ export default function App() {
                           <div className="flex items-center gap-3">
                             <div className="w-10 h-10 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-center overflow-hidden shrink-0">
                               {c.logoUrl ? (
-                                <img src={c.logoUrl} alt="Logo" referrerPolicy="no-referrer" className="max-w-full max-h-full object-contain" />
+                                <img src={c.logoUrl} alt="Logo" referrerPolicy="no-referrer" className="max-w-full max-h-full object-contain"  crossOrigin="anonymous" />
                               ) : (
                                 <Building2 size={16} className="text-slate-400" />
                               )}
@@ -2527,10 +2531,10 @@ export default function App() {
               {activeCompany.logoUrl ? (
                 <>
                   <div className="absolute top-1/4 left-1/4 w-[120vw] h-[120vh] -translate-x-1/2 -translate-y-1/2 opacity-30 blur-[120px] mix-blend-multiply">
-                    <img src={activeCompany.logoUrl} className="w-full h-full object-cover" alt="" />
+                    <img src={activeCompany.logoUrl} className="w-full h-full object-cover" alt=""  crossOrigin="anonymous" referrerPolicy="no-referrer" />
                   </div>
                   <div className="absolute bottom-0 right-0 w-[80vw] h-[80vw] translate-x-1/3 translate-y-1/3 opacity-20 blur-[100px] mix-blend-multiply">
-                    <img src={activeCompany.logoUrl} className="w-full h-full object-cover" alt="" />
+                    <img src={activeCompany.logoUrl} className="w-full h-full object-cover" alt=""  crossOrigin="anonymous" referrerPolicy="no-referrer" />
                   </div>
                 </>
               ) : (
@@ -2561,10 +2565,10 @@ export default function App() {
 
               <div 
                 id="invoice-card-to-capture" 
-                className={`relative z-10 w-full flex flex-col ${
+                className={`relative z-10 flex flex-col ${
                   isCapturing 
-                    ? "bg-slate-50 h-auto min-h-0 rounded-[33px] flex-none shadow-none border border-slate-200/60 pb-0 overflow-hidden" 
-                    : "rounded-none md:rounded-[33px] grow min-h-full pb-0 bg-transparent"
+                    ? "bg-slate-50 h-auto min-h-0 w-[390px] mx-auto rounded-[33px] flex-none shadow-none border border-slate-200/60 pb-0 overflow-hidden" 
+                    : "w-full rounded-none md:rounded-[33px] grow min-h-full pb-0 bg-transparent"
                 }`}
               >
                 
@@ -3181,7 +3185,7 @@ Email nhận hóa đơn: ${activeCompany.email || ""}${activeCompany.bankAccount
                           <div className="mt-2 flex items-center gap-4">
                             <div className="w-16 h-16 rounded-lg bg-white border border-slate-200 flex items-center justify-center p-1 shrink-0 animate-fade-in">
                               {editLogoUrl ? (
-                                <img src={editLogoUrl} alt="Logo" referrerPolicy="no-referrer" className="max-w-full max-h-full object-contain" />
+                                <img src={editLogoUrl} alt="Logo" referrerPolicy="no-referrer" className="max-w-full max-h-full object-contain"  crossOrigin="anonymous" />
                               ) : (
                                 <Building2 size={24} className="text-slate-350" />
                               )}
@@ -3526,7 +3530,7 @@ Email nhận hóa đơn: ${activeCompany.email || ""}${activeCompany.bankAccount
                     <div className="flex items-center gap-4">
                       <div className="w-14 h-14 bg-white border border-slate-200 rounded-xl flex items-center justify-center overflow-hidden shrink-0 shadow-sm">
                         {siteLogo ? (
-                          <img src={siteLogo} alt="Site Logo" className="max-w-full max-h-full object-contain" referrerPolicy="no-referrer" />
+                          <img src={siteLogo} alt="Site Logo" className="max-w-full max-h-full object-contain" referrerPolicy="no-referrer"  crossOrigin="anonymous" />
                         ) : (
                           <Building2 size={24} className="text-slate-450" />
                         )}
@@ -3588,7 +3592,7 @@ Email nhận hóa đơn: ${activeCompany.email || ""}${activeCompany.bankAccount
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 bg-white border border-slate-200 rounded-lg flex items-center justify-center overflow-hidden shrink-0 shadow-sm p-1.5">
                           {globalFaviconUrl ? (
-                            <img src={globalFaviconUrl} alt="Favicon" className="max-w-full max-h-full object-contain" referrerPolicy="no-referrer" />
+                            <img src={globalFaviconUrl} alt="Favicon" className="max-w-full max-h-full object-contain" referrerPolicy="no-referrer"  crossOrigin="anonymous" />
                           ) : (
                             <ImageIcon size={18} className="text-slate-400" />
                           )}
