@@ -33,7 +33,7 @@ import {
 } from "lucide-react";
 import { CompanyInfo, BankConfig, ApiResponse } from "./types";
 import { VIETNAMESE_BANKS, PRESET_COLORS, SAMPLE_COMPANY } from "./data";
-import { toPng } from "html-to-image";
+import { toPng, toJpeg } from "html-to-image";
 
 export const BANK_BINS: Record<string, string> = {
   vcb: "970436",
@@ -573,19 +573,55 @@ export default function App() {
       // Let the react state update and rendering settle completely
       await new Promise((resolve) => setTimeout(resolve, 500));
 
-      const dataUrl = await toPng(node, {
+      const captureHeight = node.offsetHeight;
+      const captureWidth = node.offsetWidth;
+      const captureOptions = {
         cacheBust: true,
+        width: captureWidth,
+        height: captureHeight,
         style: {
           transform: "scale(1)",
+          width: `${captureWidth}px`,
           margin: "0",
         },
+        quality: 1, // Max quality for JPEG
         pixelRatio: 2.5, // Crisp 2.5x high-res display
-      });
+      };
+
+      // Workaround for iOS/Safari where images might not load properly on the first capture
+      await toJpeg(node, captureOptions).catch(() => {});
+      
+      const dataUrl = await toJpeg(node, captureOptions);
+
+      const filename = activeCompany 
+        ? `thong-tin-nhan-hoa-don-${activeCompany.username}.jpg` 
+        : "thong-tin-nhan-hoa-don.jpg";
+
+      // Try the Web Share API first for mobile devices - this opens the native share sheet
+      // which includes "Save Image" to Photos album.
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+      if (isMobile && navigator.share) {
+        try {
+          const res = await fetch(dataUrl);
+          const blob = await res.blob();
+          const file = new File([blob], filename, { type: 'image/jpeg' });
+          if (navigator.canShare && navigator.canShare({ files: [file] })) {
+             await navigator.share({
+               files: [file],
+               title: 'Thông tin hóa đơn',
+             });
+             showToast("Đã chia sẻ/lưu ảnh thành công!", "success");
+             return;
+          }
+        } catch (e) {
+          console.log("Web Share API failed or aborted", e);
+          if (e instanceof Error && e.name === "AbortError") {
+             return; // User cancelled the share dialog
+          }
+        }
+      }
 
       const link = document.createElement("a");
-      const filename = activeCompany 
-        ? `thong-tin-nhan-hoa-don-${activeCompany.username}.png` 
-        : "thong-tin-nhan-hoa-don.png";
       link.download = filename;
       link.href = dataUrl;
       link.click();
@@ -2527,7 +2563,7 @@ export default function App() {
                 id="invoice-card-to-capture" 
                 className={`relative z-10 w-full flex flex-col ${
                   isCapturing 
-                    ? "bg-slate-50 h-auto min-h-0 w-[390px] rounded-[33px] flex-none shadow-none border border-slate-200/60 pb-0 overflow-hidden" 
+                    ? "bg-slate-50 h-auto min-h-0 rounded-[33px] flex-none shadow-none border border-slate-200/60 pb-0 overflow-hidden" 
                     : "rounded-none md:rounded-[33px] grow min-h-full pb-0 bg-transparent"
                 }`}
               >
