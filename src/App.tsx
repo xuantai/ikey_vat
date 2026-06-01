@@ -33,6 +33,7 @@ import {
 } from "lucide-react";
 import { CompanyInfo, BankConfig, ApiResponse } from "./types";
 import { VIETNAMESE_BANKS, PRESET_COLORS, SAMPLE_COMPANY } from "./data";
+import { toPng } from "html-to-image";
 
 export const BANK_BINS: Record<string, string> = {
   vcb: "970436",
@@ -93,6 +94,8 @@ export default function App() {
   const [activeCompany, setActiveCompany] = useState<CompanyInfo | null>(null);
   const [registeredCompanies, setRegisteredCompanies] = useState<any[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const [isInitialRouteLoading, setIsInitialRouteLoading] = useState<boolean>(true);
+  const [isCapturing, setIsCapturing] = useState<boolean>(false);
   
   // System Customizer States
   const [siteTitle, setSiteTitle] = useState<string>("");
@@ -256,12 +259,30 @@ export default function App() {
 
   // Parse location for route routing
   useEffect(() => {
-    parseRoute();
+    const initialize = async () => {
+      try {
+        await parseRoute();
+      } catch (err) {
+        console.error("Initial routing error:", err);
+      } finally {
+        setIsInitialRouteLoading(false);
+      }
+    };
+    initialize();
     fetchRegisteredCompanies();
     fetchSystemSettings();
     
     // Listen for back/forward browser buttons
-    const handlePopState = () => parseRoute();
+    const handlePopState = async () => {
+      setIsInitialRouteLoading(true);
+      try {
+        await parseRoute();
+      } catch (err) {
+        console.error("Routing popstate error:", err);
+      } finally {
+        setIsInitialRouteLoading(false);
+      }
+    };
     window.addEventListener("popstate", handlePopState);
     return () => window.removeEventListener("popstate", handlePopState);
   }, []);
@@ -269,8 +290,8 @@ export default function App() {
   // Dynamically synchronize Title, Favicon, and Thumbnail based on current view route
   useEffect(() => {
     if (route === "view" && activeCompany) {
-      // 1. Title: websiteTitle || "Tạo trang thông tin xuất hóa đơn VAT"
-      const companyTitle = activeCompany.websiteTitle || "Tạo trang thông tin xuất hóa đơn VAT";
+      // 1. Title: Tên công ty - Thông Tin Hóa Đơn VAT (for optimal tab branding)
+      const companyTitle = `${activeCompany.companyName || "Công ty"} - Thông Tin Hóa Đơn VAT`;
       document.title = companyTitle;
 
       // 2. Favicon: defaults to company's logoUrl!
@@ -397,7 +418,7 @@ export default function App() {
             const domainMatched = json.data.find((c: any) => c.customDomain === hostname || c.customDomain === `www.${hostname}` || `www.${c.customDomain}` === hostname);
             if (domainMatched) {
               // Custom domain matched! Render this company directly.
-              loadCompanyProfile(domainMatched.username, "view");
+              await loadCompanyProfile(domainMatched.username, "view");
               return;
             }
           }
@@ -412,7 +433,7 @@ export default function App() {
     // Check parameters first
     const qSlug = searchParams.get("slug") || searchParams.get("c");
     if (qSlug) {
-      loadCompanyProfile(qSlug);
+      await loadCompanyProfile(qSlug);
       return;
     }
 
@@ -421,9 +442,9 @@ export default function App() {
       const slugPart = hash.substring(2); // remove "#/"
       if (slugPart.endsWith("/admin")) {
         const cleanSlug = slugPart.replace("/admin", "");
-        loadCompanyProfile(cleanSlug, "admin");
+        await loadCompanyProfile(cleanSlug, "admin");
       } else {
-        loadCompanyProfile(slugPart, "view");
+        await loadCompanyProfile(slugPart, "view");
       }
       return;
     }
@@ -444,9 +465,9 @@ export default function App() {
         const slug = pathParts[0];
         if (slug !== "api" && slug !== "assets" && slug !== "admin" && slug !== "home") {
           if (pathParts[1] === "admin") {
-            loadCompanyProfile(slug, "admin");
+            await loadCompanyProfile(slug, "admin");
           } else {
-            loadCompanyProfile(slug, "view");
+            await loadCompanyProfile(slug, "view");
           }
           return;
         }
@@ -533,6 +554,49 @@ export default function App() {
       setTimeout(() => setCopiedField(null), 1200);
     } else {
       showToast("Không thể tự động sao chép. Hãy chọn văn bản và sao chép thủ công.", "error");
+    }
+  };
+
+  const handleCaptureImage = async () => {
+    const node = document.getElementById("invoice-card-to-capture");
+    if (!node) {
+      showToast("Không tìm thấy thẻ thông tin để chụp ảnh!", "error");
+      return;
+    }
+
+    showToast("Đang chuẩn bị ảnh tải về...", "info");
+
+    try {
+      // 1. Enter capture mode to force solid, non-transparent rendering of all info elements
+      setIsCapturing(true);
+      
+      // Let the react state update and rendering settle completely
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
+      const dataUrl = await toPng(node, {
+        cacheBust: true,
+        style: {
+          transform: "scale(1)",
+          margin: "0",
+        },
+        pixelRatio: 2.5, // Crisp 2.5x high-res display
+      });
+
+      const link = document.createElement("a");
+      const filename = activeCompany 
+        ? `thong-tin-nhan-hoa-don-${activeCompany.username}.png` 
+        : "thong-tin-nhan-hoa-don.png";
+      link.download = filename;
+      link.href = dataUrl;
+      link.click();
+
+      showToast("Đã tải ảnh hóa đơn xuống thành công!", "success");
+    } catch (error) {
+      console.error("Lỗi khi chuyển đổi HTML thành hình ảnh:", error);
+      showToast("Lỗi khi lưu ảnh hóa đơn. Vui lòng thử lại!", "error");
+    } finally {
+      // 2. Clear capture mode to restore responsive glass visuals on web
+      setIsCapturing(false);
     }
   };
 
@@ -1414,15 +1478,16 @@ export default function App() {
   // Dynamically compute VietQR URL
   const getVietQrUrl = () => {
     if (!activeCompany) return "";
-    const bank = activeCompany.bankName;
+    const bankBin = BANK_BINS[activeCompany.bankName] || activeCompany.bankName;
     const account = activeCompany.bankAccount;
     const owner = activeCompany.bankOwner;
     
-    // Default dynamic amount to 0 (ignored by banking app as customer types custom value)
-    const amountStr = paymentAmount ? parseInt(paymentAmount.replace(/\D/g, "")).toString() : "0";
+    // Default dynamic amount to 0 (omit from query string if it is 0 or empty to prevent image showing "Số tiền: 0đ")
+    const rawAmount = paymentAmount ? parseInt(paymentAmount.replace(/\D/g, "")) : 0;
+    const amountParam = rawAmount > 0 ? `&amount=${rawAmount}` : "";
     const memoStr = paymentRemarks || `Nhan hoa don ${activeCompany.username}`;
 
-    return `https://img.vietqr.io/image/${bank}-${account}-compact2.jpg?amount=${amountStr}&addInfo=${encodeURIComponent(memoStr)}&accountName=${encodeURIComponent(owner)}`;
+    return `https://img.vietqr.io/image/${bankBin}-${account}-compact2.jpg?addInfo=${encodeURIComponent(memoStr)}&accountName=${encodeURIComponent(owner)}${amountParam}`;
   };
 
   // Get active bank details
@@ -1437,6 +1502,40 @@ export default function App() {
     const tc = (c.taxCode || "").toLowerCase();
     return u.includes(q) || tc.includes(q);
   });
+
+  if (isInitialRouteLoading) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6 select-none">
+        <div className="flex flex-col items-center max-w-sm text-center">
+          <div className="bg-white p-8 rounded-2xl border border-slate-150 shadow-xl shadow-slate-100 flex flex-col items-center space-y-6">
+            <div className="h-16 w-16 bg-gradient-to-tr from-indigo-500 to-indigo-600 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-150 relative">
+              <Building2 size={32} className="stroke-[2.2] animate-pulse" />
+              <div className="absolute inset-x-0 bottom-0 top-0 rounded-2xl border-2 border-indigo-200/45 animate-ping opacity-60"></div>
+            </div>
+            
+            <div className="space-y-1.5">
+              <h3 className="text-sm font-black text-slate-800 tracking-wider uppercase font-sans">
+                Đang tải hệ thống
+              </h3>
+              <p className="text-[11px] text-slate-450 font-medium leading-relaxed font-sans">
+                Vui lòng chờ trong giây lát. Hệ thống đang đồng bộ và tải thông tin hóa đơn doanh nghiệp...
+              </p>
+            </div>
+            
+            <div className="flex gap-1.5 justify-center items-center h-4">
+              <span className="w-2 h-2 rounded-full bg-indigo-600 animate-bounce [animation-delay:-0.3s]"></span>
+              <span className="w-2 h-2 rounded-full bg-indigo-600 animate-bounce [animation-delay:-0.15s]"></span>
+              <span className="w-2 h-2 rounded-full bg-indigo-600 animate-bounce"></span>
+            </div>
+          </div>
+          
+          <div className="mt-6 text-[10px] text-slate-400 font-bold tracking-widest uppercase font-mono">
+            {siteTitle || appDomain || "IKEY VAT"}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col font-sans transition-colors duration-200">
@@ -2385,7 +2484,7 @@ export default function App() {
 
         {/* ==================== 2. PUBLIC VIEW PAGE ==================== */}
         {route === "view" && activeCompany && (
-          <div className="w-full bg-slate-100 py-0 md:py-16 px-0 md:px-4 min-h-screen flex items-center justify-center relative overflow-hidden">
+          <div className={`w-full bg-slate-100 py-0 md:py-16 px-0 md:px-4 min-h-[100dvh] md:min-h-screen flex items-center justify-center relative ${isCapturing ? "overflow-visible" : "overflow-hidden"}`}>
 
             {/* Dynamic Ambient Logo Background Aesthetic Layer */}
             <div className="absolute inset-0 overflow-hidden pointer-events-none z-0 select-none bg-slate-50">
@@ -2407,26 +2506,67 @@ export default function App() {
             </div>
 
             {/* Centered Phone device mockup container (Equal margins on all 4 sides, top uncluttered) */}
-            <div className="w-full h-full md:h-auto md:max-w-[420px] md:bg-slate-900 rounded-none md:rounded-[45px] shadow-none md:shadow-2xl md:p-[12px] relative flex flex-col min-h-screen md:min-h-0 md:h-[min(840px,90vh)] transition-all z-10 overflow-hidden" style={{ transform: "translate3d(0, 0, 0)", isolation: "isolate" }}>
+            <div className={`w-full md:max-w-[420px] md:bg-slate-900 rounded-none md:rounded-[45px] shadow-none md:shadow-2xl md:p-[12px] relative flex flex-col z-10 ${isCapturing ? "h-auto min-h-0 overflow-visible [&_*]:transition-none" : "transition-all h-[100dvh] md:h-auto min-h-[100dvh] md:min-h-0 md:h-[min(840px,90vh)] overflow-hidden"}`} style={{ transform: "translate3d(0, 0, 0)", isolation: "isolate" }}>
               {/* Perfect outer clipping layer */}
-              <div className="w-full h-full min-h-screen md:min-h-0 bg-slate-50/95 backdrop-blur-2xl rounded-none md:rounded-[33px] overflow-hidden flex flex-col flex-1" style={{ transform: "translate3d(0, 0, 0)", isolation: "isolate" }}>
-                <div className="w-full h-full rounded-none md:rounded-[33px] overflow-x-hidden overflow-y-auto relative flex flex-col flex-1 custom-scrollbar">
+              <div className={`w-full flex flex-col relative ${isCapturing ? "h-auto min-h-0 overflow-visible bg-slate-50/95 backdrop-blur-2xl rounded-[33px]" : "h-full min-h-[100dvh] md:min-h-0 bg-slate-50/95 backdrop-blur-2xl rounded-none md:rounded-[33px] overflow-hidden flex-1"}`} style={{ transform: "translate3d(0, 0, 0)", isolation: "isolate" }}>
+                
+                {/* BRAND BACKGROUND INSIDE DEVICE (Moved out of scrolling container to remain fixed) */}
+                {activeCompany.logoUrl && (
+                  <div className="absolute inset-0 z-0 pointer-events-none select-none opacity-15 mix-blend-multiply flex items-center justify-center overflow-hidden rounded-none md:rounded-[33px]">
+                    <img 
+                      src={activeCompany.logoUrl} 
+                      alt="" 
+                      className="w-[150%] h-[150%] object-cover blur-[8px]" 
+                    />
+                  </div>
+                )}
 
-              {/* BRAND BACKGROUND INSIDE DEVICE */}
-              {activeCompany.logoUrl && (
-                <div className="absolute inset-0 z-0 pointer-events-none select-none opacity-15 mix-blend-multiply flex items-center justify-center overflow-hidden rounded-none md:rounded-[33px]">
-                  <img 
-                    src={activeCompany.logoUrl} 
-                    alt="" 
-                    className="w-[150%] h-[150%] object-cover blur-[8px]" 
-                  />
+                <div className={`w-full rounded-none md:rounded-[33px] relative flex flex-col custom-scrollbar z-10 ${isCapturing ? "h-auto min-h-0 overflow-visible flex-none" : "overflow-x-hidden h-full min-h-full overflow-y-auto flex-1"}`}>
+
+              <div 
+                id="invoice-card-to-capture" 
+                className={`relative z-10 w-full flex flex-col ${
+                  isCapturing 
+                    ? "bg-slate-50 h-auto min-h-0 w-[390px] rounded-[33px] flex-none shadow-none border border-slate-200/60 pb-0 overflow-hidden" 
+                    : "rounded-none md:rounded-[33px] grow min-h-full pb-0 bg-transparent"
+                }`}
+              >
+                
+                {/* Beautiful dynamic ambient background layer inside the card capture container so it is captured in screenshots */}
+                <div className={`absolute inset-0 pointer-events-none z-0 select-none bg-slate-50 ${isCapturing ? "block" : "hidden"}`}>
+                  {activeCompany.logoUrl ? (
+                    <>
+                      {/* Blurred logo aesthetic bubbles */}
+                      <div className="absolute top-1/4 left-1/4 w-[120%] h-[120%] -translate-x-1/2 -translate-y-1/2 opacity-25 blur-[100px] mix-blend-multiply">
+                        <img src={activeCompany.logoUrl} className="w-full h-full object-cover" alt="" referrerPolicy="no-referrer" crossOrigin="anonymous" />
+                      </div>
+                      <div className="absolute bottom-0 right-0 w-[80%] h-[80%] translate-x-1/3 translate-y-1/3 opacity-15 blur-[80px] mix-blend-multiply">
+                        <img src={activeCompany.logoUrl} className="w-full h-full object-cover" alt="" referrerPolicy="no-referrer" crossOrigin="anonymous" />
+                      </div>
+                    </>
+                  ) : (
+                    <div className="absolute inset-0 opacity-40 blur-[100px]" style={{ 
+                      background: `radial-gradient(circle at 50% 50%, ${activeCompany.primaryColor}40 0%, transparent 60%),
+                                   radial-gradient(circle at 80% 20%, ${activeCompany.primaryColor}30 0%, transparent 50%)`
+                    }}></div>
+                  )}
+
+                  {/* Brand logo overlay blend inside the card */}
+                  {activeCompany.logoUrl && (
+                    <div className="absolute inset-0 z-0 pointer-events-none select-none opacity-10 mix-blend-multiply flex items-center justify-center overflow-hidden rounded-none md:rounded-[33px]">
+                      <img 
+                        src={activeCompany.logoUrl} 
+                        alt="" 
+                        crossOrigin="anonymous"
+                        referrerPolicy="no-referrer"
+                        className="w-[150%] h-[150%] object-cover blur-[8px]" 
+                      />
+                    </div>
+                  )}
                 </div>
-              )}
-
-              <div className="relative z-10 flex flex-col flex-1 w-full rounded-none md:rounded-[33px]">
                 
                 {/* Profile Card Header */}
-                <div className="relative overflow-hidden px-6 pt-6 pb-5 flex flex-col items-center border-b border-slate-200/50 bg-white/70 backdrop-blur-md rounded-t-none md:rounded-t-[33px] shrink-0">
+                <div className={`relative overflow-hidden px-6 pt-6 pb-5 flex flex-col items-center border-b border-slate-200/50 rounded-t-none md:rounded-t-[33px] shrink-0 z-10 ${isCapturing ? "bg-white/75" : "bg-white/70 backdrop-blur-md"}`}>
                   {activeCompany.logoUrl && (
                     <div 
                       className="absolute inset-0 opacity-[0.10] bg-center bg-cover scale-125 blur-[4px] pointer-events-none" 
@@ -2436,8 +2576,8 @@ export default function App() {
                   <div className="relative z-10 flex flex-col items-center w-full">
                     {/* Logo centered */}
                     {activeCompany.logoUrl ? (
-                      <div className="w-20 h-20 rounded-2xl bg-white/90 border border-slate-200 flex items-center justify-center p-3 mb-2.5 shrink-0 shadow-sm relative group">
-                        <img src={activeCompany.logoUrl} alt="Company Logo" referrerPolicy="no-referrer" className="max-w-full max-h-full object-contain mix-blend-multiply" />
+                      <div className={`w-20 h-20 rounded-2xl border border-slate-200 flex items-center justify-center p-3 mb-2.5 shrink-0 shadow-sm relative group ${isCapturing ? "bg-white" : "bg-white/90"}`}>
+                        <img src={activeCompany.logoUrl} alt="Company Logo" crossOrigin="anonymous" referrerPolicy="no-referrer" className="max-w-full max-h-full object-contain mix-blend-multiply" />
                       </div>
                     ) : null}
 
@@ -2457,10 +2597,12 @@ export default function App() {
                 {/* 1. MST Bento Card */}
                 <div 
                   onClick={() => copyToClipboard(activeCompany.taxCode, "Mã số thuế (MST)")}
-                  className={`p-3.5 rounded-xl border-2 cursor-pointer select-none group relative flex items-center justify-between transition-all duration-200 ${
+                  className={`p-3.5 rounded-xl border-2 cursor-pointer select-none group relative flex items-center justify-between transition-all duration-200 z-10 ${
                     copiedField === "Mã số thuế (MST)" 
                       ? "border-slate-900 bg-slate-950 text-white transform scale-[0.98]" 
-                      : "bg-white/60 backdrop-blur-md border-white/80 shadow-sm hover:bg-white hover:border-slate-300 hover:shadow"
+                      : isCapturing
+                        ? "bg-white/80 border-slate-200/80 shadow-sm"
+                        : "bg-white/60 backdrop-blur-md border-white/80 shadow-sm hover:bg-white hover:border-slate-300 hover:shadow"
                   }`}
                 >
                   <div className="flex items-center gap-3">
@@ -2471,7 +2613,7 @@ export default function App() {
                       <Hash size={16} className="stroke-[2.5]" />
                     </div>
                     <div>
-                      <p className={`text-[8px] font-extrabold uppercase tracking-widest ${copiedField === "Mã số thuế (MST)" ? "text-slate-300" : "text-slate-400"}`}>
+                      <p className={`text-[8.5px] font-extrabold uppercase tracking-widest ${copiedField === "Mã số thuế (MST)" ? "text-slate-300" : "text-slate-400"}`}>
                         {t("Mã số thuế", "Tax Code")}
                       </p>
                       <p className="font-mono text-base font-extrabold tracking-wider leading-none mt-1">
@@ -2480,24 +2622,28 @@ export default function App() {
                     </div>
                   </div>
                   
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    {copiedField === "Mã số thuế (MST)" ? (
-                      <span className="text-[10px] font-bold text-white uppercase flex items-center gap-0.5" style={{ color: activeCompany.primaryColor }}><Check size={12}/> Đã copy!</span>
-                    ) : (
-                      <span className="text-slate-400 group-hover:text-slate-900 flex items-center">
-                        <Copy size={14} />
-                      </span>
-                    )}
-                  </div>
+                  {!isCapturing && (
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {copiedField === "Mã số thuế (MST)" ? (
+                        <span className="text-[10px] font-bold text-white uppercase flex items-center gap-0.5" style={{ color: activeCompany.primaryColor }}><Check size={12}/> Đã copy!</span>
+                      ) : (
+                        <span className="text-slate-400 group-hover:text-slate-900 flex items-center">
+                          <Copy size={14} />
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* 2. TEN DAY DU */}
                 <div 
                   onClick={() => copyToClipboard(activeCompany.companyName, "Tên đầy đủ công ty")}
-                  className={`p-3.5 rounded-xl border-2 cursor-pointer select-none group relative flex items-center justify-between transition-all duration-200 ${
+                  className={`p-3.5 rounded-xl border-2 cursor-pointer select-none group relative flex items-center justify-between transition-all duration-200 z-10 ${
                     copiedField === "Tên đầy đủ công ty" 
                       ? "border-slate-900 bg-slate-950 text-white transform scale-[0.98]" 
-                      : "bg-white/60 backdrop-blur-md border-white/80 shadow-sm hover:bg-white hover:border-slate-300 hover:shadow"
+                      : isCapturing
+                        ? "bg-white/80 border-slate-200/80 shadow-sm"
+                        : "bg-white/60 backdrop-blur-md border-white/80 shadow-sm hover:bg-white hover:border-slate-300 hover:shadow"
                   }`}
                 >
                   <div className="flex items-center gap-3 pr-2">
@@ -2508,33 +2654,37 @@ export default function App() {
                       <Building2 size={16} className="stroke-[2.5]" />
                     </div>
                     <div>
-                      <p className={`text-[8px] font-extrabold uppercase tracking-widest ${copiedField === "Tên đầy đủ công ty" ? "text-slate-300" : "text-slate-400"}`}>
+                      <p className={`text-[8.5px] font-extrabold uppercase tracking-widest ${copiedField === "Tên đầy đủ công ty" ? "text-slate-300" : "text-slate-400"}`}>
                         {t("Tên đầy đủ công ty", "Full Company Name")}
                       </p>
-                      <p className={`text-xs font-extrabold leading-tight mt-1 uppercase ${copiedField === "Tên đầy đủ công ty" ? "text-white" : "text-slate-800"}`}>
+                      <p className={`text-xs font-extrabold leading-tight mt-1 uppercase ${copiedField === "Tên đầy đủ công ty" ? "text-white" : "text-slate-850"}`}>
                         {activeCompany.companyName}
                       </p>
                     </div>
                   </div>
                   
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    {copiedField === "Tên đầy đủ công ty" ? (
-                      <span className="text-[10px] font-bold uppercase flex items-center gap-0.5" style={{ color: activeCompany.primaryColor }}><Check size={12}/> Đã copy!</span>
-                    ) : (
-                      <span className="text-slate-400 group-hover:text-slate-900 flex items-center">
-                        <Copy size={14} />
-                      </span>
-                    )}
-                  </div>
+                  {!isCapturing && (
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {copiedField === "Tên đầy đủ công ty" ? (
+                        <span className="text-[10px] font-bold uppercase flex items-center gap-0.5" style={{ color: activeCompany.primaryColor }}><Check size={12}/> Đã copy!</span>
+                      ) : (
+                        <span className="text-slate-400 group-hover:text-slate-900 flex items-center">
+                          <Copy size={14} />
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* 3. DIA CHI TRU SO */}
                 <div 
                   onClick={() => copyToClipboard(activeCompany.address, "Địa chỉ xuất hóa đơn")}
-                  className={`p-3.5 rounded-xl border-2 cursor-pointer select-none group relative flex items-center justify-between transition-all duration-200 ${
+                  className={`p-3.5 rounded-xl border-2 cursor-pointer select-none group relative flex items-center justify-between transition-all duration-200 z-10 ${
                     copiedField === "Địa chỉ xuất hóa đơn" 
                       ? "border-slate-900 bg-slate-950 text-white transform scale-[0.98]" 
-                      : "bg-white/60 backdrop-blur-md border-white/80 shadow-sm hover:bg-white hover:border-slate-300 hover:shadow"
+                      : isCapturing
+                        ? "bg-white/80 border-slate-200/80 shadow-sm"
+                        : "bg-white/60 backdrop-blur-md border-white/80 shadow-sm hover:bg-white hover:border-slate-300 hover:shadow"
                   }`}
                 >
                   <div className="flex items-center gap-3 pr-2">
@@ -2545,24 +2695,26 @@ export default function App() {
                       <MapPin size={16} className="stroke-[2.5]" />
                     </div>
                     <div>
-                      <p className={`text-[8px] font-extrabold uppercase tracking-widest ${copiedField === "Địa chỉ xuất hóa đơn" ? "text-slate-300" : "text-slate-400"}`}>
+                      <p className={`text-[8.5px] font-extrabold uppercase tracking-widest ${copiedField === "Địa chỉ xuất hóa đơn" ? "text-slate-300" : "text-slate-400"}`}>
                         {t("Địa chỉ kinh doanh", "Registered Business Address")}
                       </p>
-                      <p className={`text-[11px] font-bold leading-relaxed mt-0.5 ${copiedField === "Địa chỉ xuất hóa đơn" ? "text-white" : "text-slate-700 group-hover:text-slate-950"}`}>
+                      <p className={`text-[11px] font-bold leading-relaxed mt-0.5 ${copiedField === "Địa chỉ xuất hóa đơn" ? "text-white" : "text-slate-750 group-hover:text-slate-950"}`}>
                         {activeCompany.address}
                       </p>
                     </div>
                   </div>
                   
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    {copiedField === "Địa chỉ xuất hóa đơn" ? (
-                      <span className="text-[10px] font-bold uppercase flex items-center gap-0.5" style={{ color: activeCompany.primaryColor }}><Check size={12}/> Đã copy!</span>
-                    ) : (
-                      <span className="text-slate-400 group-hover:text-slate-900 flex items-center">
-                        <Copy size={14} />
-                      </span>
-                    )}
-                  </div>
+                  {!isCapturing && (
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {copiedField === "Địa chỉ xuất hóa đơn" ? (
+                        <span className="text-[10px] font-bold uppercase flex items-center gap-0.5" style={{ color: activeCompany.primaryColor }}><Check size={12}/> Đã copy!</span>
+                      ) : (
+                        <span className="text-slate-400 group-hover:text-slate-900 flex items-center">
+                          <Copy size={14} />
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* Separate layout for Email/Phone: 2 separate lines to prevent truncation */}
@@ -2571,10 +2723,12 @@ export default function App() {
                   {activeCompany.email && (
                     <div 
                       onClick={() => copyToClipboard(activeCompany.email, "Email nhận hóa đơn")}
-                      className={`p-3.5 rounded-xl border-2 cursor-pointer select-none group relative flex items-center justify-between transition-all duration-200 ${
+                      className={`p-3.5 rounded-xl border-2 cursor-pointer select-none group relative flex items-center justify-between transition-all duration-200 z-10 ${
                         copiedField === "Email nhận hóa đơn" 
                           ? "border-slate-900 bg-slate-950 text-white" 
-                          : "bg-white/60 backdrop-blur-md border-white/80 shadow-sm hover:bg-white hover:border-slate-300 hover:shadow"
+                          : isCapturing
+                            ? "bg-white/80 border-slate-200/80 shadow-sm"
+                            : "bg-white/60 backdrop-blur-md border-white/80 shadow-sm hover:bg-white hover:border-slate-300 hover:shadow"
                       }`}
                     >
                       <div className="flex items-center gap-3 pr-2 w-full min-w-0">
@@ -2585,7 +2739,7 @@ export default function App() {
                           <Mail size={16} className="stroke-[2.5]" />
                         </div>
                         <div className="truncate min-w-0 flex-1">
-                          <p className={`text-[8px] font-extrabold uppercase tracking-widest ${copiedField === "Email nhận hóa đơn" ? "text-slate-300" : "text-slate-400"}`}>
+                          <p className={`text-[8.5px] font-extrabold uppercase tracking-widest ${copiedField === "Email nhận hóa đơn" ? "text-slate-300" : "text-slate-400"}`}>
                             {t("Email nhận hóa đơn", "Invoice Email")}
                           </p>
                           <p className={`text-sm font-bold mt-1 break-all truncate ${copiedField === "Email nhận hóa đơn" ? "text-white" : "text-slate-800"}`}>
@@ -2594,15 +2748,17 @@ export default function App() {
                         </div>
                       </div>
                       
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        {copiedField === "Email nhận hóa đơn" ? (
-                          <span className="text-[10px] font-bold text-white uppercase flex items-center gap-0.5" style={{ color: activeCompany.primaryColor }}><Check size={12}/> Đã copy!</span>
-                        ) : (
-                          <span className="text-slate-400 group-hover:text-slate-900 flex items-center">
-                            <Copy size={14} />
-                          </span>
-                        )}
-                      </div>
+                      {!isCapturing && (
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          {copiedField === "Email nhận hóa đơn" ? (
+                            <span className="text-[10px] font-bold text-white uppercase flex items-center gap-0.5" style={{ color: activeCompany.primaryColor }}><Check size={12}/> Đã copy!</span>
+                          ) : (
+                            <span className="text-slate-400 group-hover:text-slate-900 flex items-center">
+                              <Copy size={14} />
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </div>
                   )}
 
@@ -2610,10 +2766,12 @@ export default function App() {
                   {activeCompany.phone && (
                     <div 
                       onClick={() => copyToClipboard(activeCompany.phone, "Số điện thoại")}
-                      className={`p-3.5 rounded-xl border-2 cursor-pointer select-none group relative flex items-center justify-between transition-all duration-200 ${
+                      className={`p-3.5 rounded-xl border-2 cursor-pointer select-none group relative flex items-center justify-between transition-all duration-200 z-10 ${
                         copiedField === "Số điện thoại" 
                           ? "border-slate-900 bg-slate-950 text-white" 
-                          : "bg-white/60 backdrop-blur-md border-white/80 shadow-sm hover:bg-white hover:border-slate-300 hover:shadow"
+                          : isCapturing
+                            ? "bg-white/80 border-slate-200/80 shadow-sm"
+                            : "bg-white/60 backdrop-blur-md border-white/80 shadow-sm hover:bg-white hover:border-slate-300 hover:shadow"
                       }`}
                     >
                       <div className="flex items-center gap-3 pr-2 w-full min-w-0">
@@ -2624,7 +2782,7 @@ export default function App() {
                           <Phone size={16} className="stroke-[2.5]" />
                         </div>
                         <div className="truncate min-w-0 flex-1">
-                          <p className={`text-[8px] font-extrabold uppercase tracking-widest ${copiedField === "Số điện thoại" ? "text-slate-300" : "text-slate-400"}`}>
+                          <p className={`text-[8.5px] font-extrabold uppercase tracking-widest ${copiedField === "Số điện thoại" ? "text-slate-300" : "text-slate-400"}`}>
                             {t("Số điện thoại liên hệ", "Contact Phone")}
                           </p>
                           <p className={`text-sm font-mono font-bold mt-1 ${copiedField === "Số điện thoại" ? "text-white" : "text-slate-850"}`}>
@@ -2633,101 +2791,153 @@ export default function App() {
                         </div>
                       </div>
                       
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        {copiedField === "Số điện thoại" ? (
-                          <span className="text-[10px] font-bold text-white uppercase flex items-center gap-0.5" style={{ color: activeCompany.primaryColor }}><Check size={12}/> Đã copy!</span>
-                        ) : (
-                          <span className="text-slate-400 group-hover:text-slate-900 flex items-center">
-                            <Copy size={14} />
-                          </span>
-                        )}
-                      </div>
+                      {!isCapturing && (
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          {copiedField === "Số điện thoại" ? (
+                            <span className="text-[10px] font-bold text-white uppercase flex items-center gap-0.5" style={{ color: activeCompany.primaryColor }}><Check size={12}/> Đã copy!</span>
+                          ) : (
+                            <span className="text-slate-400 group-hover:text-slate-900 flex items-center">
+                              <Copy size={14} />
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
 
+                {/* Actions Grid: Lưu Text & Lưu Ảnh */}
+                {!isCapturing && (
+                  <div className="grid grid-cols-2 gap-3 px-6 pb-1 no-capture">
+                    {/* Button 1: Sao chép Toàn bộ Text */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const bankObj = VIETNAMESE_BANKS.find(b => b.id === activeCompany.bankName);
+                        const bankDisplayName = bankObj ? (bankObj.shortName || bankObj.name) : (activeCompany.bankName || "");
+                        const textToCopy = `Tên công ty: ${activeCompany.companyName || ""}
+Mã số thuế: ${activeCompany.taxCode || ""}
+Địa chỉ: ${activeCompany.address || ""}
+Số điện thoại: ${activeCompany.phone || ""}
+Email nhận hóa đơn: ${activeCompany.email || ""}${activeCompany.bankAccount ? `\nSố tài khoản: ${activeCompany.bankAccount}` : ""}${activeCompany.bankOwner ? `\nTên tài khoản: ${activeCompany.bankOwner.toUpperCase()}` : ""}${bankDisplayName ? `\nNgân hàng: ${bankDisplayName}` : ""}`;
+                        
+                        copyToClipboard(textToCopy, "Toàn bộ thông tin dạng Text");
+                      }}
+                      className="py-3 px-3 rounded-xl border border-indigo-200 bg-indigo-50/40 hover:bg-slate-900 hover:text-white hover:border-slate-900 hover:shadow-md transition-all flex items-center justify-center gap-1.5 text-xs text-indigo-700 font-extrabold cursor-pointer select-none active:scale-[0.98] shadow-sm uppercase tracking-wide shrink-0"
+                    >
+                      <Copy size={13} className="stroke-[2.5]" />
+                      <span>{t("Lưu Text", "Save Text")}</span>
+                    </button>
+
+                    {/* Button 2: Lưu Ảnh (Chụp màn hình thẻ thông tin) */}
+                    <button
+                      type="button"
+                      onClick={handleCaptureImage}
+                      className="py-3 px-3 rounded-xl border border-emerald-200 bg-emerald-50/40 hover:bg-slate-900 hover:text-white hover:border-slate-900 hover:shadow-md transition-all flex items-center justify-center gap-1.5 text-xs text-emerald-700 font-extrabold cursor-pointer select-none active:scale-[0.98] shadow-sm uppercase tracking-wide shrink-0"
+                    >
+                      <Download size={13} className="stroke-[2.5]" />
+                      <span>{t("Lưu Ảnh", "Save Image")}</span>
+                    </button>
+                  </div>
+                )}
+
                 {/* DYNAMIC VIETQR BANK TRANSFER CONTAINER: HIGHLY SIMPLIFIED FOR MINIMUM HEIGHT */}
                 {activeCompany.bankAccount && (
-                  <div className="border border-white/80 rounded-2xl p-4 bg-white/60 backdrop-blur-md space-y-3.5 shadow-sm">
+                  <div className={`mx-0 border rounded-2xl p-4 space-y-3.5 shadow-sm ${isCapturing ? "bg-white border-slate-200" : "border-white/80 bg-white/60 backdrop-blur-md"}`}>
+                    
                     {/* Centered QR code with image only */}
-                    <div className="flex flex-col items-center justify-center p-3.5 bg-white border border-slate-200/60 rounded-xl relative">
-                      <img 
-                        src={getVietQrUrl()} 
-                        alt="VietQR" 
-                        referrerPolicy="no-referrer"
-                        className="w-44 h-44 object-contain"
-                      />
+                    <div className={`flex flex-col items-center justify-center bg-white border border-slate-200/60 rounded-xl relative mx-auto ${isCapturing ? 'w-full p-2 aspect-[10/10]' : 'p-2 w-[88%] aspect-[10/9]'}`}>
+                      <div className="w-full h-full relative overflow-hidden flex items-center justify-center">
+                        <div className="w-full h-full absolute inset-0" style={{ transform: isCapturing ? 'scale(1.24) translateY(-2.5%)' : 'scale(1.18) translateY(-4%)', transformOrigin: 'center' }}>
+                          <img 
+                            src={getVietQrUrl()} 
+                            alt="VietQR" 
+                            crossOrigin="anonymous"
+                            referrerPolicy="no-referrer"
+                            className={`w-full h-full mix-blend-multiply ${isCapturing ? 'object-contain' : 'object-contain'}`}
+                          />
+                        </div>
+                      </div>
                     </div>
 
-                    {/* Copyable bank details info grid */}
-                    <div className="bg-white/80 backdrop-blur-sm p-3.5 rounded-xl border border-slate-200/60 shadow-sm space-y-2">
+                    {/* Copyable bank details info grid - Hidden in screenshots to rely on the uncropped VietQR image */}
+                    <div className={`p-3.5 rounded-xl border shadow-sm space-y-3 mt-4 ${isCapturing ? "hidden" : "bg-white/80 backdrop-blur-sm border-slate-200/60"}`}>
                       <div 
                         className="flex justify-between items-center text-sm border-b border-slate-100 pb-2 cursor-pointer select-none hover:bg-slate-50/50 p-1 rounded transition-colors" 
                         onClick={() => copyToClipboard(getBankDetail(activeCompany.bankName)?.shortName || "KHÁC", "Tên ngân hàng")}
                       >
-                        <span className="text-slate-450 font-extrabold uppercase text-[9px]">{t("Ngân hàng", "Bank")}</span>
-                        <span className="font-extrabold text-slate-800 flex items-center gap-1">
-                          {getBankDetail(activeCompany.bankName)?.shortName || "NGÂN HÀNG KHÁC"}
-                          <Copy size={11} className="text-slate-350" />
-                        </span>
+                        <span className="text-slate-450 font-extrabold uppercase text-[9.5px] shrink-0 mr-3">{t("Ngân hàng", "Bank")}</span>
+                        <div className="font-extrabold text-slate-800 flex items-center justify-end text-right min-w-0">
+                          <span className="truncate mr-1.5">{getBankDetail(activeCompany.bankName)?.shortName || "NGÂN HÀNG KHÁC"}</span>
+                          {!isCapturing && <Copy size={11} className="text-slate-350 shrink-0" />}
+                        </div>
                       </div>
                       
                       <div 
                         className="flex justify-between items-center text-sm border-b border-slate-150 pb-2 cursor-pointer select-none hover:bg-slate-50/50 p-1 rounded transition-colors" 
                         onClick={() => copyToClipboard(activeCompany.bankAccount, "Số tài khoản")}
                       >
-                        <span className="text-slate-450 font-extrabold uppercase text-[9px]">{t("Số tài khoản", "Account Number")}</span>
-                        <span className="font-mono text-emerald-600 text-sm font-black flex items-center gap-1 tracking-wide">
-                          {activeCompany.bankAccount}
-                          <Copy size={11} className="text-slate-350" />
-                        </span>
+                        <span className="text-slate-450 font-extrabold uppercase text-[9.5px] shrink-0 mr-3">{t("Số tài khoản", "Account Number")}</span>
+                        <div className="font-mono text-emerald-600 text-[13.5px] font-black flex items-center justify-end text-right tracking-wide min-w-0">
+                          <span className="truncate mr-1.5">{activeCompany.bankAccount}</span>
+                          {!isCapturing && <Copy size={11} className="text-slate-350 shrink-0" />}
+                        </div>
                       </div>
 
                       <div 
                         className="flex justify-between items-center text-sm cursor-pointer select-none hover:bg-slate-50/50 p-1 rounded transition-colors" 
                         onClick={() => copyToClipboard(activeCompany.bankOwner, "Chủ tài khoản")}
                       >
-                        <span className="text-slate-450 font-extrabold uppercase text-[9px]">{t("Tên tài khoản", "Account Name")}</span>
-                        <span className="font-bold text-slate-700 uppercase flex items-center gap-1 tracking-tight">
-                          {activeCompany.bankOwner}
-                          <Copy size={11} className="text-slate-350" />
-                        </span>
+                        <span className="text-slate-450 font-extrabold uppercase text-[9.5px] shrink-0 mr-3">{t("Chủ tài khoản", "Account Name")}</span>
+                        <div className="font-bold text-[13px] text-slate-700 uppercase flex items-center justify-end text-right min-w-0">
+                          <span className="mr-1.5 max-w-full text-right" style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', wordBreak: 'break-word', lineHeight: '1.2' }}>{activeCompany.bankOwner}</span>
+                          {!isCapturing && <Copy size={11} className="text-slate-350 shrink-0" />}
+                        </div>
                       </div>
                     </div>
                   </div>
                 )}
+              </div>
 
                 {/* Small Space-Saving Support Banner */}
-                <div className="px-6 pb-4">
-                  <button
-                    type="button"
-                    onClick={() => setSupportModalOpen(true)}
-                    className="w-full py-2 px-3 rounded-lg border border-rose-100 bg-rose-50/30 hover:bg-rose-50/70 hover:border-rose-200 transition-all flex items-center justify-center gap-1.5 text-[11px] text-rose-700 font-semibold cursor-pointer select-none active:scale-[0.98] shadow-sm"
-                  >
-                    <Heart size={12} className="fill-rose-500 stroke-rose-400/30 animate-pulse" />
-                    {t("Ủng hộ nhà phát triển", "Support developer")}
-                  </button>
+                {!isCapturing && (
+                  <div className="px-6 pb-2 mt-auto">
+                    <button
+                      type="button"
+                      onClick={() => setSupportModalOpen(true)}
+                      className="w-full py-2 px-3 rounded-lg border border-rose-100 bg-rose-50/30 hover:bg-rose-50/70 hover:border-rose-200 transition-all flex items-center justify-center gap-1.5 text-[11px] text-rose-700 font-semibold cursor-pointer select-none active:scale-[0.98] shadow-sm"
+                    >
+                      <Heart size={12} className="fill-rose-500 stroke-rose-400/30 animate-pulse" />
+                      {t("Ủng hộ nhà phát triển", "Support developer")}
+                    </button>
+                  </div>
+                )}
+
+                {/* Bottom design credits */}
+                <div className={`${isCapturing ? 'mt-2 border-none pb-4 pt-1' : 'mt-auto pt-4 pb-6 border-t'} bg-white/80 backdrop-blur-md px-6 md:pb-5 border-slate-200/50 flex justify-between items-center text-xs text-slate-400 w-full rounded-b-none md:rounded-b-[33px]`}>
+                  {isCapturing ? (
+                    <span className="flex items-center gap-1.5 w-full justify-center text-slate-500 font-medium">
+                      <span className="uppercase text-[9px] tracking-widest text-slate-400 font-bold">{t("Nguồn", "Source")}:</span> 
+                      <span className="text-indigo-600 font-mono font-bold tracking-wide">vat.{appDomain}/{activeCompany.username}</span>
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-1">
+                      Xây dựng bởi <button type="button" onClick={navigateToHome} className="font-bold text-emerald-600 hover:text-emerald-700 hover:underline">{appDomain}</button>
+                    </span>
+                  )}
+                  
+                  {!isCapturing && (
+                    <div className="flex items-center gap-2">
+                      <button 
+                        onClick={() => navigateToSlug(activeCompany.username, "admin")}
+                        className="text-[11px] font-semibold text-slate-500 hover:text-slate-800 flex items-center gap-1 hover:underline"
+                      >
+                        <Edit size={11} className="text-slate-400" /> Sửa thông tin
+                      </button>
+                    </div>
+                  )}
                 </div>
-
-              </div>
-
-              {/* Bottom design credits */}
-              <div className="mt-auto bg-slate-50 py-4 px-6 border-t border-slate-100 flex justify-between items-center text-xs text-slate-400">
-                <span className="flex items-center gap-1">
-                  Xây dựng bởi <button type="button" onClick={navigateToHome} className="font-bold text-emerald-600 hover:text-emerald-700 hover:underline">{appDomain}</button>
-                </span>
-                
-                <div className="flex items-center gap-2">
-                  <button 
-                    onClick={() => navigateToSlug(activeCompany.username, "admin")}
-                    className="text-[11px] font-semibold text-slate-500 hover:text-slate-800 flex items-center gap-1 hover:underline"
-                  >
-                    <Edit size={11} className="text-slate-400" /> Sửa thông tin
-                  </button>
-                </div>
-              </div>
-
-             </div>{/* relative z-10 block */}
+              </div>{/* relative z-10 block */}
              </div>{/* View scrolling Inner container */}
              </div>{/* Perfect outer clipping layer */}
             </div>{/* phone mock */}
