@@ -1230,6 +1230,7 @@ export default function App() {
     name: string;
     address?: string;
     phone?: string;
+    email?: string;
     domain?: string;
   }) => {
     setSmartSuggestions([]);
@@ -1251,9 +1252,38 @@ export default function App() {
       setRegPhone(company.phone);
       setTempPhone(company.phone);
     }
+    
+    if (company.email) {
+      setRegEmail(company.email);
+    }
 
-    if (company.domain) {
-      setRegLogoUrl(`https://logo.clearbit.com/${company.domain.replace(/^https?:\/\//i, '').replace(/\/.*$/, '')}`);
+    let domainToUse = company.domain;
+    if (!domainToUse && company.email && company.email.includes('@')) {
+      const emailDomain = company.email.split('@')[1];
+      if (emailDomain !== 'gmail.com' && emailDomain !== 'yahoo.com' && emailDomain !== 'hotmail.com' && emailDomain !== 'outlook.com') {
+        domainToUse = emailDomain;
+      }
+    }
+
+    if (!domainToUse) {
+      const lowerName = (company.name || '').toLowerCase();
+      if (lowerName.includes('viettel')) domainToUse = 'viettel.com.vn';
+      else if (lowerName.includes('vingroup')) domainToUse = 'vingroup.net';
+      else if (lowerName.includes('fpt')) domainToUse = 'fpt.com.vn';
+      else if (lowerName.includes('vietcombank') || lowerName.includes('vcb')) domainToUse = 'vietcombank.com.vn';
+      else if (lowerName.includes('momo')) domainToUse = 'momo.vn';
+      else if (lowerName.includes('vnpt')) domainToUse = 'vnpt.vn';
+      else if (lowerName.includes('shopee')) domainToUse = 'shopee.vn';
+      else if (lowerName.includes('bidv')) domainToUse = 'bidv.com.vn';
+      else if (lowerName.includes('mbbank') || lowerName.includes('mb bank')) domainToUse = 'mbbank.com.vn';
+      else if (lowerName.includes('techcombank')) domainToUse = 'techcombank.com';
+    }
+
+    if (domainToUse) {
+      const cleanDomain = domainToUse.toLowerCase().replace(/^https?:\/\//i, '').replace(/\/.*$/, '').trim();
+      if (cleanDomain.includes('.')) {
+        setRegLogoUrl(`https://logo.clearbit.com/${cleanDomain}`);
+      }
     }
 
     // Auto sync username based on trimmed and clean company name if username is empty or standard template
@@ -2104,7 +2134,7 @@ export default function App() {
                       <div className="relative w-full flex items-center overflow-hidden">
                         {!searchQuery && (
                           <div className={`absolute inset-0 flex items-center pointer-events-none whitespace-nowrap text-sm font-semibold select-none z-0 ${aiScanning ? 'text-white' : 'text-slate-400'}`}>
-                            <span className="animate-marquee">
+                            <span className="animate-marquee whitespace-nowrap">
                               {aiScanning ? t("Đang phân tích ảnh...", "Scanning image...") : t("Nhập MST để tìm nhanh, thả ảnh để AI tự nhập thông tin.", "Enter tax code or drop image to let AI fill out.")}
                             </span>
                           </div>
@@ -2822,12 +2852,12 @@ export default function App() {
 
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <div className="md:col-span-1 bg-slate-50/50 p-2 rounded-xl border border-slate-200">
-                      <label className="flex items-center justify-center p-3 h-full bg-white rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer select-none transition-all shadow-sm">
+                      <label className="flex items-center justify-center gap-2 p-3 h-full bg-white rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer select-none transition-all shadow-sm min-h-[50px]">
                         <input
                           type="checkbox"
                           checked={regIsPublic}
                           onChange={(e) => setRegIsPublic(e.target.checked)}
-                          className="w-4 h-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500 cursor-pointer accent-indigo-600 mr-2"
+                          className="w-4 h-4 shrink-0 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500 cursor-pointer accent-indigo-600"
                         />
                         <span className="text-[11px] font-black text-slate-700 uppercase tracking-widest whitespace-nowrap">
                           {regIsPublic ? t("Công Khai", "Public") : t("Riêng tư", "Private")}
@@ -2916,7 +2946,7 @@ export default function App() {
                   {/* Blinking Preview Label */}
                   <div className="absolute top-3 left-3 z-[15] flex items-center gap-1.5 bg-white/85 backdrop-blur-md px-2 py-0.5 rounded-full border border-slate-200/50 text-[9px] font-extrabold uppercase tracking-widest text-slate-650 animate-pulse select-none">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></span>
-                    <span>Preview Live</span>
+                    <span>{t("XEM TRƯỚC", "PREVIEW LIVE")}</span>
                   </div>
 
                   {/* Device shell mockup container */}
@@ -3690,7 +3720,7 @@ export default function App() {
 
                       {/* Actions Grid: Lưu Text & Lưu Ảnh & Chia se */}
                       {!isCapturing && (
-                        <div className="flex gap-2.5 px-6 pb-1 no-capture justify-between">
+                        <div className="flex gap-2.5 px-6 pb-1 no-capture">
                           {/* Button 1: Sao chép Toàn bộ Text */}
                           <button
                             type="button"
@@ -3712,30 +3742,30 @@ Email nhận hóa đơn: ${activeCompany.email || ""}${activeCompany.bankAccount
                                 "Toàn bộ thông tin dạng Text",
                               );
                             }}
-                            className="flex-1 py-3 px-2 rounded-xl border border-indigo-200 bg-indigo-50/40 hover:bg-slate-900 hover:text-white hover:border-slate-900 hover:shadow-md transition-all flex items-center justify-center gap-1.5 text-xs text-indigo-700 font-extrabold cursor-pointer select-none active:scale-[0.98] shadow-sm uppercase tracking-wide shrink-0"
+                            className="flex-1 py-3 px-1 sm:px-2 rounded-xl border border-indigo-200 bg-indigo-50/40 hover:bg-slate-900 hover:text-white hover:border-slate-900 hover:shadow-md transition-all flex items-center justify-center gap-1 sm:gap-1.5 text-[11px] sm:text-xs min-[400px]:text-[13px] text-indigo-700 font-extrabold cursor-pointer select-none active:scale-[0.98] shadow-sm uppercase tracking-wide"
                           >
-                            <Copy size={13} className="stroke-[2.5]" />
-                            <span>{t("Lưu Text", "Save Text")}</span>
+                            <Copy size={15} className="shrink-0 stroke-[2.5]" />
+                            <span className="whitespace-nowrap pointer-events-none">{t("Lưu Text", "Save Text")}</span>
                           </button>
 
                           {/* Button Chia sẻ */}
                           <button
                             type="button"
                             onClick={handleShareInvoice}
-                            className="w-[3.25rem] py-3 px-2 rounded-xl border border-sky-200 bg-sky-50/40 hover:bg-slate-900 hover:text-white hover:border-slate-900 hover:shadow-md transition-all flex items-center justify-center cursor-pointer shadow-sm text-sky-700 shrink-0 active:scale-[0.98]"
-                            title="Chia sẻ lên mạng xã hội/Telegram/Zalo"
+                            className="w-[52px] shrink-0 py-3 rounded-xl border border-sky-200 bg-sky-50/40 hover:bg-slate-900 hover:text-white hover:border-slate-900 hover:shadow-md transition-all flex items-center justify-center text-sky-700 cursor-pointer select-none active:scale-[0.98] shadow-sm"
+                            title={t("Chia sẻ", "Share")}
                           >
-                            <Share2 size={16} className="stroke-[2.5]" />
+                            <Share2 size={18} className="stroke-[2.5]" />
                           </button>
 
                           {/* Button 2: Lưu Ảnh (Chụp màn hình thẻ thông tin) */}
                           <button
                             type="button"
                             onClick={handleCaptureImage}
-                            className="flex-1 py-3 px-2 rounded-xl border border-emerald-200 bg-emerald-50/40 hover:bg-slate-900 hover:text-white hover:border-slate-900 hover:shadow-md transition-all flex items-center justify-center gap-1.5 text-xs text-emerald-700 font-extrabold cursor-pointer select-none active:scale-[0.98] shadow-sm uppercase tracking-wide shrink-0"
+                            className="flex-1 py-3 px-1 sm:px-2 rounded-xl border border-emerald-200 bg-emerald-50/40 hover:bg-slate-900 hover:text-white hover:border-slate-900 hover:shadow-md transition-all flex items-center justify-center gap-1 sm:gap-1.5 text-[11px] sm:text-xs min-[400px]:text-[13px] text-emerald-700 font-extrabold cursor-pointer select-none active:scale-[0.98] shadow-sm uppercase tracking-wide"
                           >
-                            <Download size={13} className="stroke-[2.5]" />
-                            <span>{t("Lưu Ảnh", "Save Image")}</span>
+                            <Download size={15} className="shrink-0 stroke-[2.5]" />
+                            <span className="whitespace-nowrap pointer-events-none">{t("Lưu Ảnh", "Save Image")}</span>
                           </button>
                         </div>
                       )}

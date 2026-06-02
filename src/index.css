@@ -51,8 +51,16 @@ body {
 
 @keyframes marquee {
   0%, 10% { transform: translateX(0); }
-  45%, 55% { transform: translateX(calc(-100% + 150px)); }
+  45%, 55% { transform: translateX(min(0px, calc(-100% + 280px))); }
   90%, 100% { transform: translateX(0); }
+}
+
+@media (min-width: 768px) {
+  @keyframes marquee {
+    0%, 10% { transform: translateX(0); }
+    45%, 55% { transform: translateX(min(0px, calc(-100% + 380px))); }
+    90%, 100% { transform: translateX(0); }
+  }
 }
 
 .animate-marquee {

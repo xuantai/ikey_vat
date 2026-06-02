@@ -663,29 +663,74 @@ app.post("/api/scan-image", async (req, res) => {
     };
 
     const textPart = {
-      text: "Trích xuất thông tin doanh nghiệp, hoá đơn, hoặc danh thiếp từ hình ảnh. Tìm Mã số thuế (taxCode). Các trường: Tên công ty (name), Địa chỉ (address), Số điện thoại (phone), và tên miền website (domain). CHÚ Ý: Nếu là các công ty/tập đoàn lớn (Viettel, Vingroup, FPT, Vietcombank, v.v.), BẠN PHẢI điền chính xác tên miền chính thức của họ vào trường domain, kể cả khi trên ảnh không ghi (VD: viettel.com.vn cho Viettel, vingroup.net cho Vingroup). Chỉ ghi mỗi tên gốc, VD: viettel.com.vn. Không bịa với công ty nhỏ.",
+      text: "Trích xuất thông tin doanh nghiệp, hoá đơn, hoặc danh thiếp từ hình ảnh. Tìm Mã số thuế (taxCode). Các trường: Tên công ty (name), Địa chỉ (address), Số điện thoại (phone), Email (email), và tên miền website (domain).\nCHÚ Ý RẤT QUAN TRỌNG: Bạn CẦN TỰ PHÂN TÍCH LOGO HOẶC TÊN CÔNG TY. Nếu đó là các công ty/tập đoàn lớn quen thuộc (Viettel, Vingroup, FPT, Vietcombank, Momo, VNPT, Shopee, v.v.), BẠN PHẢI TỰ ĐỘNG điền tên miền CHÍNH THỨC của họ vào trường domain NGAY CẢ KHI TRÊN ẢNH KHÔNG GHI rõ web (VD: viettel.com.vn, vingroup.net, fpt.com.vn, vietcombank.com.vn, momo.vn, v.v.). CHỈ GHI MỖI TÊN MIỀN GỐC (vd: viettel.vn). Nếu tìm thấy Email, hãy lấy phần đuôi (sau @) làm domain trừ gmail/yahoo. MỤC TIÊU LÀ PHẢI TÌM/ĐOÁN ĐƯỢC TÊN MIỀN NẾU CÓ THỂ.",
     };
 
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: { parts: [imagePart, textPart] },
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            taxCode: { type: Type.STRING },
-            name: { type: Type.STRING },
-            address: { type: Type.STRING },
-            phone: { type: Type.STRING },
-            domain: { type: Type.STRING }
+    let response;
+    
+    try {
+      response = await ai.models.generateContent({
+        model: "gemini-2.5-flash",
+        contents: { parts: [imagePart, textPart] },
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              taxCode: { type: Type.STRING },
+              name: { type: Type.STRING },
+              address: { type: Type.STRING },
+              phone: { type: Type.STRING },
+              email: { type: Type.STRING },
+              domain: { type: Type.STRING }
+            }
           }
         }
+      });
+    } catch (err: any) {
+      if (err.status === 503 || err.message?.includes("503") || err.message?.includes("UNAVAILABLE") || err.message?.includes("high demand")) {
+        console.warn("gemini-2.5-flash unavailable, falling back to gemini-2.0-flash");
+        response = await ai.models.generateContent({
+          model: "gemini-2.0-flash",
+          contents: { parts: [imagePart, textPart] },
+          config: {
+            responseMimeType: "application/json",
+            responseSchema: {
+              type: Type.OBJECT,
+              properties: {
+                taxCode: { type: Type.STRING },
+                name: { type: Type.STRING },
+                address: { type: Type.STRING },
+                phone: { type: Type.STRING },
+                email: { type: Type.STRING },
+                domain: { type: Type.STRING }
+              }
+            }
+          }
+        });
+      } else {
+        throw err;
       }
-    });
+    }
 
     if (response.text) {
       const result = JSON.parse(response.text);
+      
+      // Fallback domain logic based on tax code for major companies
+      if (!result.domain && result.taxCode) {
+        const tc = result.taxCode.replace(/[^0-9]/g, "");
+        if (tc === "0100109106") result.domain = "viettel.com.vn";
+        else if (tc === "0101245486") result.domain = "vingroup.net";
+        else if (tc === "0101248141") result.domain = "fpt.com.vn";
+        else if (tc === "0100112437") result.domain = "vietcombank.com.vn";
+        else if (tc.startsWith("0313980000")) result.domain = "momo.vn"; // Momo tax code varies, this is one of them
+        else if (tc === "0106869738") result.domain = "vnpt.vn";
+        else if (tc === "0106773786") result.domain = "shopee.vn";
+        else if (tc === "0100150619") result.domain = "bidv.com.vn";
+        else if (tc === "0100283873") result.domain = "mbbank.com.vn";
+        else if (tc === "0100230800") result.domain = "techcombank.com";
+      }
+
       res.json({ success: true, data: result });
     } else {
       res.json({ success: false, message: "Không đọc được dữ liệu." });
