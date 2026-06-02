@@ -196,6 +196,8 @@ app.get("/api/companies", async (req, res) => {
       logoUrl: c.logoUrl,
       primaryColor: c.primaryColor,
       taxCode: c.taxCode || "",
+      customDomain: c.customDomain || "",
+      isPublic: c.isPublic,
     }));
     res.json({ success: true, count: summary.length, data: summary });
   } catch (err) {
@@ -572,6 +574,7 @@ app.put("/api/companies/:username", async (req, res) => {
       thumbnailUrl: updatedData.thumbnailUrl !== undefined ? updatedData.thumbnailUrl : currentCompany.thumbnailUrl,
       websiteTitle: updatedData.websiteTitle !== undefined ? updatedData.websiteTitle : currentCompany.websiteTitle,
       adminPassword: updatedData.newAdminPassword || currentCompany.adminPassword, // support changing password
+      isPublic: updatedData.isPublic !== undefined ? updatedData.isPublic : currentCompany.isPublic,
       updatedAt: new Date().toISOString(),
     };
 

@@ -176,6 +176,7 @@ export default function App() {
   const [regBankOwner, setRegBankOwner] = useState<string>("");
   const [regPrimaryColor, setRegPrimaryColor] = useState<string>("#10B981");
   const [regAdminPassword, setRegAdminPassword] = useState<string>("");
+  const [regIsPublic, setRegIsPublic] = useState<boolean>(true);
   const [showRegPassword, setShowRegPassword] = useState<boolean>(false);
   const [regError, setRegError] = useState<string | null>(null);
   const [usernameStatus, setUsernameStatus] = useState<
@@ -217,6 +218,7 @@ export default function App() {
   const [editFaviconUrl, setEditFaviconUrl] = useState<string>("");
   const [editThumbnailUrl, setEditThumbnailUrl] = useState<string>("");
   const [editWebsiteTitle, setEditWebsiteTitle] = useState<string>("");
+  const [editIsPublic, setEditIsPublic] = useState<boolean>(true);
 
   // Bank display options
   const [showQRInputs, setShowQRInputs] = useState<boolean>(false);
@@ -1003,6 +1005,7 @@ export default function App() {
         setEditFaviconUrl(company.faviconUrl || "");
         setEditThumbnailUrl(company.thumbnailUrl || "");
         setEditWebsiteTitle(company.websiteTitle || "");
+        setEditIsPublic(company.isPublic !== false);
         setEditNewPassword("");
         setAdminUsernameInput(company.username);
         setShowEditQR(!!company.bankAccount);
@@ -1484,6 +1487,7 @@ export default function App() {
       bankOwner: showQRInputs ? finalBankOwner : "",
       primaryColor: regPrimaryColor,
       adminPassword: regAdminPassword,
+      isPublic: regIsPublic,
     };
 
     setLoading(true);
@@ -1508,6 +1512,7 @@ export default function App() {
         setRegBankAccount("");
         setRegBankOwner("");
         setRegAdminPassword("");
+        setRegIsPublic(true);
 
         // Reset temp states too
         setTempUsername("");
@@ -1620,6 +1625,7 @@ export default function App() {
       thumbnailUrl: editThumbnailUrl,
       websiteTitle: editWebsiteTitle,
       newAdminPassword: editNewPassword || undefined,
+      isPublic: editIsPublic,
     };
 
     setLoading(true);
@@ -1712,7 +1718,7 @@ export default function App() {
   };
 
   // Search filtering logic on Home Page
-  const filteredCompanies = registeredCompanies.filter((c) => {
+  const filteredCompanies = registeredCompanies.filter((c: any) => c.isPublic !== false).filter((c) => {
     const q = (searchQuery || "").toLowerCase();
     const u = (c.username || "").toLowerCase();
     const tc = (c.taxCode || "").toLowerCase();
@@ -2175,6 +2181,7 @@ export default function App() {
                         setRegBankOwner(SAMPLE_COMPANY.bankOwner);
                         setRegPrimaryColor(SAMPLE_COMPANY.primaryColor);
                         setRegAdminPassword("123456");
+                        setRegIsPublic(SAMPLE_COMPANY.isPublic ?? true);
 
                         showToast(
                           "Đã tải dữ liệu mẫu thành công lên form và màn hình xem trước!",
@@ -2217,6 +2224,7 @@ export default function App() {
                         setRegBankOwner("");
                         setRegPrimaryColor("#0f172a"); // Default slate
                         setRegAdminPassword("");
+                        setRegIsPublic(true);
 
                         showToast(
                           "Đã xóa trắng toàn bộ dữ liệu trên form!",
@@ -2647,27 +2655,43 @@ export default function App() {
                     </div>
                   </div>
 
-                  {/* Captcha Verify */}
-                  <div className="bg-amber-50 p-4 rounded-xl border border-amber-100 flex items-center justify-between gap-4">
-                    <div className="flex-1">
-                      <label className="block text-xs font-semibold text-slate-800 mb-1 flex items-center gap-2">
-                        Xác minh bạn là con người{" "}
-                        <span className="text-red-500">*</span>
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div className="md:col-span-1 bg-slate-50/50 p-4 rounded-xl border border-slate-200 flex flex-col justify-center items-center gap-2">
+                      <label className="relative flex items-center cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={regIsPublic}
+                          onChange={(e) => setRegIsPublic(e.target.checked)}
+                          className="peer sr-only"
+                        />
+                        <div className="w-10 h-5 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-100 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
                       </label>
-                      <p className="text-xs text-amber-700 uppercase tracking-widest font-extrabold flex items-center gap-2 mt-1.5">
-                        <span className="bg-white px-2 py-1 rounded shadow-sm border border-amber-200">
-                          {captchaQ.a} + {captchaQ.b} = ?
-                        </span>
-                      </p>
+                      <span className="text-[10px] font-bold text-slate-700 uppercase tracking-wider text-center">
+                        {regIsPublic ? t("Công Khai", "Public") : t("Không Công Khai", "Private")}
+                      </span>
                     </div>
-                    <input
-                      type="number"
-                      required
-                      placeholder="Kết quả..."
-                      value={captchaA}
-                      onChange={(e) => setCaptchaA(e.target.value)}
-                      className="w-24 py-2.5 px-3 rounded-lg border border-amber-200 text-sm focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20 text-center font-bold bg-white"
-                    />
+
+                    {/* Captcha Verify */}
+                    <div className="md:col-span-3 bg-amber-50 p-4 rounded-xl border border-amber-100 flex items-center justify-between gap-4">
+                      <div className="flex-1">
+                        <label className="block text-[11px] font-semibold text-slate-800 mb-1 flex items-center gap-1">
+                          Xác minh <span className="text-red-500">*</span>
+                        </label>
+                        <p className="text-[11px] text-amber-700 uppercase tracking-widest font-black flex items-center gap-2 mt-1.5">
+                          <span className="bg-white px-2 py-1.5 rounded border border-amber-200/60 shadow-sm leading-none">
+                            {captchaQ.a} + {captchaQ.b} =
+                          </span>
+                        </p>
+                      </div>
+                      <input
+                        type="number"
+                        required
+                        placeholder="?"
+                        value={captchaA}
+                        onChange={(e) => setCaptchaA(e.target.value)}
+                        className="w-16 py-2 px-2 rounded-lg border border-amber-200 text-sm focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20 text-center font-bold bg-white"
+                      />
+                    </div>
                   </div>
 
                   {/* Error & Submit message */}
@@ -2934,6 +2958,7 @@ export default function App() {
                           setRegBankOwner(SAMPLE_COMPANY.bankOwner);
                           setRegPrimaryColor(SAMPLE_COMPANY.primaryColor);
                           setRegAdminPassword("123456");
+                        setRegIsPublic(SAMPLE_COMPANY.isPublic ?? true);
 
                           showToast(
                             "Đã tải dữ liệu mẫu thành công lên form và màn hình xem trước!",
@@ -4045,94 +4070,121 @@ Email nhận hóa đơn: ${activeCompany.email || ""}${activeCompany.bankAccount
                     {/* TAB 2: BANKQR DETAILS */}
                     {adminCPTab === "banks" && (
                       <div className="space-y-4">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div>
-                            <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">
-                              Ngân hàng phát hành VietQR
-                            </label>
-                            <select
-                              value={editBankName}
-                              onChange={(e) => {
-                                const val = e.target.value;
-                                setEditBankName(val);
-                                if (editBankAccount) {
-                                  handleBankLookup(val, editBankAccount, true);
-                                }
-                              }}
-                              className="w-full bg-slate-50 border border-slate-200 px-3 py-2.5 rounded-lg text-sm text-slate-800 focus:outline-none focus:border-indigo-600 focus:bg-white"
-                            >
-                              {VIETNAMESE_BANKS.map((b) => (
-                                <option key={b.id} value={b.id}>
-                                  {b.shortName}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-
-                          <div>
-                            <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">
-                              Số Tài Khoản
-                            </label>
+                        {/* Optional Bank Tick Trigger Checkbox */}
+                        <div className="bg-slate-50/30 p-1.5 rounded-xl border border-slate-200/55">
+                          <label className="flex items-center gap-3 p-3.5 bg-white rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer select-none transition-all shadow-sm">
                             <input
-                              type="text"
-                              required
-                              value={editBankAccount}
-                              onChange={(e) =>
-                                setEditBankAccount(
-                                  e.target.value.replace(/\D/g, ""),
-                                )
-                              }
-                              onBlur={() => {
-                                if (editBankAccount) {
-                                  handleBankLookup(
-                                    editBankName,
-                                    editBankAccount,
-                                    true,
-                                  );
+                              type="checkbox"
+                              checked={showEditQR}
+                              onChange={(e) => {
+                                setShowEditQR(e.target.checked);
+                                if (!e.target.checked) {
+                                  setEditBankAccount("");
+                                  setEditBankOwner("");
                                 }
                               }}
-                              className="w-full bg-slate-50 border border-slate-200 px-3 py-2.5 rounded-lg text-sm font-mono text-slate-900 focus:outline-none focus:border-indigo-600 focus:bg-white font-extrabold"
+                              className="w-4.5 h-4.5 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500 cursor-pointer accent-indigo-600"
                             />
-                          </div>
+                            <div>
+                              <p className="text-xs font-bold text-slate-800 uppercase tracking-wide">
+                                {t("Hiện Mã QR thanh toán", "Show QR Payment Code")}
+                              </p>
+                            </div>
+                          </label>
                         </div>
+                        
+                        {showEditQR && (
+                          <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-100/50 space-y-4 animate-fade-in">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div>
+                                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">
+                                  Ngân hàng phát hành VietQR
+                                </label>
+                                <select
+                                  value={editBankName}
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    setEditBankName(val);
+                                    if (editBankAccount) {
+                                      handleBankLookup(val, editBankAccount, true);
+                                    }
+                                  }}
+                                  className="w-full bg-slate-50 border border-slate-200 px-3 py-2.5 rounded-lg text-sm text-slate-800 focus:outline-none focus:border-indigo-600 focus:bg-white"
+                                >
+                                  {VIETNAMESE_BANKS.map((b) => (
+                                    <option key={b.id} value={b.id}>
+                                      {b.shortName}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
 
-                        <div>
-                          <div className="flex items-center justify-between mb-1.5">
-                            <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-                              Chủ Tài Khoản (Viết hoa không dấu)
-                            </label>
-                            <label className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-500 hover:text-slate-800 cursor-pointer select-none">
+                              <div>
+                                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">
+                                  Số Tài Khoản
+                                </label>
+                                <input
+                                  type="text"
+                                  required={showEditQR}
+                                  value={editBankAccount}
+                                  onChange={(e) =>
+                                    setEditBankAccount(
+                                      e.target.value.replace(/\D/g, ""),
+                                    )
+                                  }
+                                  onBlur={() => {
+                                    if (editBankAccount) {
+                                      handleBankLookup(
+                                        editBankName,
+                                        editBankAccount,
+                                        true,
+                                      );
+                                    }
+                                  }}
+                                  className="w-full bg-slate-50 border border-slate-200 px-3 py-2.5 rounded-lg text-sm font-mono text-slate-900 focus:outline-none focus:border-indigo-600 focus:bg-white font-extrabold"
+                                />
+                              </div>
+                            </div>
+
+                            <div>
+                              <div className="flex items-center justify-between mb-1.5">
+                                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                                  Chủ Tài Khoản (Viết hoa không dấu)
+                                </label>
+                                <label className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-500 hover:text-slate-800 cursor-pointer select-none">
+                                  <input
+                                    type="checkbox"
+                                    checked={editSyncWithCompany}
+                                    onChange={(e) => {
+                                      setEditSyncWithCompany(e.target.checked);
+                                      if (e.target.checked && editCompanyName) {
+                                        const unsignedOwner =
+                                          removeVietnameseTones(
+                                            editCompanyName,
+                                          ).toUpperCase();
+                                        setEditBankOwner(unsignedOwner);
+                                      }
+                                    }}
+                                    className="w-3.5 h-3.5 rounded text-indigo-650 focus:ring-indigo-500 cursor-pointer accent-indigo-600"
+                                  />
+                                  <span>Giống tên công ty</span>
+                                </label>
+                              </div>
                               <input
-                                type="checkbox"
-                                checked={editSyncWithCompany}
+                                type="text"
+                                required={showEditQR}
+                                value={editBankOwner}
                                 onChange={(e) => {
-                                  setEditSyncWithCompany(e.target.checked);
-                                  if (e.target.checked && editCompanyName) {
-                                    const unsignedOwner =
-                                      removeVietnameseTones(
-                                        editCompanyName,
-                                      ).toUpperCase();
-                                    setEditBankOwner(unsignedOwner);
+                                  setEditBankOwner(e.target.value.toUpperCase());
+                                  if (editSyncWithCompany) {
+                                    setEditSyncWithCompany(false);
                                   }
                                 }}
-                                className="w-3.5 h-3.5 rounded text-indigo-650 focus:ring-indigo-500 cursor-pointer accent-indigo-600"
+                                className="w-full bg-slate-50 border border-slate-200 px-3 py-2.5 rounded-lg text-sm font-mono text-slate-900 focus:outline-none focus:border-indigo-600 focus:bg-white font-extrabold uppercase"
                               />
-                              <span>Giống tên công ty</span>
-                            </label>
+                            </div>
                           </div>
-                          <input
-                            type="text"
-                            required
-                            value={editBankOwner}
-                            onChange={(e) => {
-                              setEditBankOwner(e.target.value.toUpperCase());
-                              if (editSyncWithCompany) {
-                                setEditSyncWithCompany(false);
-                              }
-                            }}
-                            className="w-full bg-slate-50 border border-slate-200 px-3 py-2.5 rounded-lg text-sm font-mono text-slate-900 focus:outline-none focus:border-indigo-600 focus:bg-white font-extrabold uppercase"
-                          />
-                        </div>
+                        )}
                       </div>
                     )}
 
@@ -4215,6 +4267,19 @@ Email nhận hóa đơn: ${activeCompany.email || ""}${activeCompany.bankAccount
                               }
                               className="w-full bg-white border border-slate-200 px-3 py-2 rounded-lg text-sm font-mono focus:outline-none"
                             />
+                          </div>
+
+                          <div className="pt-4 border-t border-slate-200 flex items-center justify-between">
+                            <label className="text-[10px] font-bold text-slate-700 uppercase tracking-wider">{editIsPublic ? t("Công Khai", "Public") : t("Không Công Khai", "Private")}</label>
+                            <label className="relative flex items-center cursor-pointer select-none">
+                              <input
+                                type="checkbox"
+                                checked={editIsPublic}
+                                onChange={(e) => setEditIsPublic(e.target.checked)}
+                                className="peer sr-only"
+                              />
+                              <div className="w-10 h-5 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-100 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
+                            </label>
                           </div>
                         </div>
 

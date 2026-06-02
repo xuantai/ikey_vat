@@ -16,6 +16,7 @@ export interface CompanyInfo {
   faviconUrl?: string; // Favicon URL mới
   thumbnailUrl?: string; // Thumbnail URL mới
   websiteTitle?: string; // Website Title mới
+  isPublic?: boolean; // Trang web có hiện ở trang chủ không
   createdAt: string;
   updatedAt: string;
 }

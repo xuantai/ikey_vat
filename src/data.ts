@@ -104,17 +104,18 @@ export const PRESET_COLORS = [
 ];
 
 export const SAMPLE_COMPANY = {
-  username: "viettel-telecom",
-  companyName: "TẬP ĐOÀN CÔNG NGHIỆP - VIỄN THÔNG QUÂN ĐỘI",
-  taxCode: "0100109106",
-  address: "Số 1 Trần Hữu Dực, Phường Mỹ Đình 2, Nam Từ Liêm, Thành phố Hà Nội",
-  email: "hoadon@viettel.com.vn",
-  phone: "02462556789",
-  logoUrl: "https://upload.wikimedia.org/wikipedia/commons/f/fe/Viettel_logo_2021.svg",
-  bankName: "mbbank",
-  bankAccount: "1900109106",
-  bankOwner: "TẬP ĐOÀN CÔNG NGHIỆP VIỄN THÔNG QUÂN ĐỘI",
-  primaryColor: "#EF4444",
+  username: "apple",
+  companyName: "CÔNG TY TNHH APPLE VIỆT NAM",
+  taxCode: "0313510827",
+  address: "Phòng 901, Ngôi Nhà Đức tại Thành phố Hồ Chí Minh, số 33, đường Lê Duẩn, Phường Bến Nghé, Quận 1, Thành phố Hồ Chí Minh",
+  email: "hoadon@apple.com",
+  phone: "0123456789",
+  logoUrl: "https://upload.wikimedia.org/wikipedia/commons/f/fa/Apple_logo_black.svg",
+  bankName: "vcb",
+  bankAccount: "10123456789",
+  bankOwner: "CÔNG TY TNHH APPLE VIỆT NAM",
+  primaryColor: "#000000",
+  isPublic: true,
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString()
 };
