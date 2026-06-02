@@ -48,3 +48,16 @@ body {
   -moz-user-select: none !important;
   -ms-user-select: none !important;
 }
+
+@keyframes marquee-mobile {
+  0%, 10% { transform: translateX(0); }
+  45%, 55% { transform: translateX(calc(-100% + 240px)); }
+  90%, 100% { transform: translateX(0); }
+}
+@media (max-width: 640px) {
+  .animate-marquee-mobile {
+    animation: marquee-mobile 8s linear infinite;
+    display: inline-block;
+    padding-right: 20px;
+  }
+}

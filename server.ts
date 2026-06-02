@@ -629,18 +629,24 @@ app.post("/api/scan-image", async (req, res) => {
 
     // Try to get API key from Firestore settings or fallback to process.env
     let apiKey = process.env.GEMINI_API_KEY;
+    let hasDbKey = false;
     try {
       const settingsRef = doc(db, "settings", "global");
       const settingsSnap = await getDoc(settingsRef);
       if (settingsSnap.exists() && settingsSnap.data().geminiApiKey) {
-        apiKey = settingsSnap.data().geminiApiKey;
+        apiKey = settingsSnap.data().geminiApiKey.trim();
+        hasDbKey = true;
       }
     } catch (e) {
       console.error("Failed to read settings for Gemini API Key", e);
     }
+    
+    if (apiKey) {
+      apiKey = apiKey.trim();
+    }
 
     if (!apiKey) {
-      return res.status(500).json({ success: false, message: "Hệ thống chưa thiết lập API Key của Gemini. Vui lòng liên hệ quản trị viên." });
+      return res.status(500).json({ success: false, message: `Hệ thống chưa thiết lập API Key của Gemini. DB Status: ${hasDbKey}. Env: ${!!process.env.GEMINI_API_KEY}` });
     }
 
     const ai = new GoogleGenAI({
@@ -661,7 +667,7 @@ app.post("/api/scan-image", async (req, res) => {
     };
 
     const response = await ai.models.generateContent({
-      model: "gemini-3.5-flash",
+      model: "gemini-2.5-flash",
       contents: { parts: [imagePart, textPart] },
       config: {
         responseMimeType: "application/json",
@@ -685,7 +691,10 @@ app.post("/api/scan-image", async (req, res) => {
     }
   } catch (err: any) {
     console.error("Lỗi AI Scan:", err);
-    res.status(500).json({ success: false, message: "Lỗi nội bộ server: " + err.message });
+    if (err.message?.includes("exceeded your current quota") || err.status === 429) {
+      return res.status(429).json({ success: false, message: "API Gemini của bạn đã hết lượt sử dụng miễn phí hôm nay. Vui lòng thử lại sau hoặc nâng cấp gói API." });
+    }
+    res.status(500).json({ success: false, message: "Lỗi AI phân tích: " + (err.message || 'Unknown error') });
   }
 });
 

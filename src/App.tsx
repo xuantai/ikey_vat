@@ -1250,7 +1250,7 @@ export default function App() {
       await lookupTaxCode(company.taxCode);
     } else {
       showToast(
-        "Đã tự động điền thông tin công ty! Hãy thêm tài khoản ngân hàng để hoàn tất.",
+        "Đã tự động điền thông tin công ty! Hãy kiểm tra và hoàn tất thông tin.",
         "success",
       );
     }
@@ -1313,6 +1313,21 @@ export default function App() {
     const file = e.dataTransfer.files[0];
     if (file) {
       processScanImage(file);
+    }
+  };
+
+  const handlePasteScan = (e: React.ClipboardEvent) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type.indexOf("image") !== -1) {
+        const file = items[i].getAsFile();
+        if (file) {
+          processScanImage(file);
+          e.preventDefault();
+          break;
+        }
+      }
     }
   };
 
@@ -2047,6 +2062,16 @@ export default function App() {
 
                 {/* Search / filter box integrated with Unified Live Autocomplete Search */}
                 <div className="mt-8 max-w-md mx-auto relative z-35 text-left">
+                  {/* AI Scanning Overlay */}
+                  {aiScanning && (
+                    <div className="absolute -inset-2 bg-indigo-50/80 backdrop-blur-[2px] rounded-2xl flex items-center justify-center z-50 shadow-inner">
+                      <div className="flex items-center gap-2 px-4 py-2 bg-indigo-600 shadow-lg border border-indigo-500 rounded-full text-white transform scale-105 transition-all">
+                        <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                        <span className="text-xs font-bold tracking-widest uppercase animate-pulse">Đang phân tích ảnh...</span>
+                      </div>
+                    </div>
+                  )}
+                  
                   <div 
                     className={`flex items-center p-1 shadow-xl box-border rounded-xl border transition-all duration-300 ${isDraggingOverTarget ? 'border-dashed border-2 border-indigo-500 bg-indigo-50 ring-4 ring-indigo-100/50 scale-105' : aiScanning ? 'border-indigo-400 ring-4 ring-indigo-100 animate-pulse bg-indigo-50/30' : 'bg-white border-slate-200 focus-within:border-indigo-500 focus-within:ring-4 focus-within:ring-indigo-100'}`}
                     onDrop={handleDropScan}
@@ -2055,16 +2080,22 @@ export default function App() {
                   >
                     <div className="flex-1 flex items-center pl-3">
                       <Search className="text-slate-400 shrink-0 mr-2" size={18} />
-                      <input
-                        type="text"
-                        placeholder={aiScanning ? t("AI Đang phân tích ảnh...", "AI is scanning image...") : t(
-                          "Nhập MST tìm nhanh, thả ảnh để AI đọc...",
-                          "Enter tax code or drop image to let AI fill out...",
+                      <div className="relative w-full flex items-center overflow-hidden">
+                        {!searchQuery && (
+                          <div className="absolute inset-0 flex items-center pointer-events-none whitespace-nowrap text-slate-400 text-sm font-semibold select-none z-0">
+                            <span className="animate-marquee-mobile sm:animate-none">
+                              {aiScanning ? t("AI Đang phân tích ảnh...", "AI is scanning image...") : t("Nhập MST tìm nhanh, thả ảnh để AI đọc...", "Enter tax code or drop image to let AI fill out...")}
+                            </span>
+                          </div>
                         )}
-                        value={searchQuery}
-                        onChange={(e) => handleHeroSearchChange(e.target.value)}
-                        className="w-full text-sm py-2.5 px-3 bg-transparent focus:outline-none placeholder-slate-400 font-semibold cursor-text min-w-0"
-                      />
+                        <input
+                          type="text"
+                          value={searchQuery}
+                          onChange={(e) => handleHeroSearchChange(e.target.value)}
+                          onPaste={handlePasteScan}
+                          className="w-full text-sm py-2.5 px-3 bg-transparent focus:outline-none cursor-text relative z-10 text-slate-800"
+                        />
+                      </div>
                     </div>
                     
                     <div className="flex items-center gap-1 shrink-0 pr-1">
@@ -2343,7 +2374,7 @@ export default function App() {
                   </div>
                 </div>
 
-                <form onSubmit={handleRegister} className="space-y-5">
+                <form onSubmit={handleRegister} className={`space-y-5 transition-all duration-300 ${aiScanning ? 'opacity-60 animate-pulse pointer-events-none blur-[1px]' : ''}`}>
                   {/* Step 1: Link & Username */}
                   <div>
                     <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
@@ -2761,15 +2792,19 @@ export default function App() {
 
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <div className="md:col-span-1 bg-slate-50/50 p-4 rounded-xl border border-slate-200 flex justify-center items-center">
-                      <div className="flex flex-col items-center gap-2">
+                      <div className="flex flex-col items-center justify-center h-full gap-3">
                         <button
                           type="button"
                           onClick={() => setRegIsPublic(!regIsPublic)}
-                          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${regIsPublic ? 'bg-indigo-600' : 'bg-slate-300'}`}
+                          className={`relative inline-flex h-[36px] w-[64px] shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600 focus-visible:ring-offset-2 ${regIsPublic ? 'bg-indigo-600' : 'bg-slate-300'}`}
                         >
-                          <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${regIsPublic ? 'translate-x-6' : 'translate-x-1'}`} />
+                          <span className="sr-only">Cài đặt hiển thị</span>
+                          <span
+                            aria-hidden="true"
+                            className={`pointer-events-none inline-block h-[28px] w-[28px] transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${regIsPublic ? 'translate-x-[28px]' : 'translate-x-0'}`}
+                          />
                         </button>
-                        <span className="text-[10px] sm:text-[11px] font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap">
+                        <span className="text-[11px] font-black text-slate-700 uppercase tracking-widest whitespace-nowrap">
                           {regIsPublic ? t("Công Khai", "Public") : t("Riêng tư", "Private")}
                         </span>
                       </div>
@@ -4378,9 +4413,13 @@ Email nhận hóa đơn: ${activeCompany.email || ""}${activeCompany.bankAccount
                             <button
                               type="button"
                               onClick={() => setEditIsPublic(!editIsPublic)}
-                              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${editIsPublic ? 'bg-indigo-600' : 'bg-slate-300'}`}
+                              className={`relative inline-flex h-[32px] w-[56px] shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600 focus-visible:ring-offset-2 ${editIsPublic ? 'bg-indigo-600' : 'bg-slate-300'}`}
                             >
-                              <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${editIsPublic ? 'translate-x-6' : 'translate-x-1'}`} />
+                              <span className="sr-only">Cài đặt hiển thị</span>
+                              <span
+                                aria-hidden="true"
+                                className={`pointer-events-none inline-block h-[24px] w-[24px] transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${editIsPublic ? 'translate-x-[24px]' : 'translate-x-0'}`}
+                              />
                             </button>
                           </div>
                         </div>
