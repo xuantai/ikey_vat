@@ -113,6 +113,7 @@ export default function App() {
 
   // System Customizer States
   const [siteTitle, setSiteTitle] = useState<string>("");
+  const [geminiApiKey, setGeminiApiKey] = useState<string>("");
   const [globalSeoTitle, setGlobalSeoTitle] = useState<string>("");
   const [siteSubtitle, setSiteSubtitle] = useState<string>("");
   const [siteLogo, setSiteLogo] = useState<string>("");
@@ -769,6 +770,7 @@ export default function App() {
           localStorage.setItem("globalBaseUrl", d.globalBaseUrl);
         }
         setSiteTitle(d.siteTitle || "");
+        setGeminiApiKey(d.geminiApiKey || "");
         setGlobalSeoTitle(d.globalSeoTitle || "");
         setSiteSubtitle(d.siteSubtitle || "");
         setSiteLogo(d.siteLogo || "");
@@ -802,6 +804,7 @@ export default function App() {
         body: JSON.stringify({
           globalBaseUrl: globalBaseUrl.trim(),
           siteTitle,
+          geminiApiKey,
           globalSeoTitle,
           siteSubtitle,
           siteLogo,
@@ -4990,6 +4993,32 @@ Email nhận hóa đơn: ${activeCompany.email || ""}${activeCompany.bankAccount
                         ))}
                       </div>
                     )}
+                  </div>
+                </div>
+
+                {/* 4. KHỐI CẤU HÌNH AI (GEMINI) */}
+                <div className="p-4 bg-slate-50 border border-slate-200/60 rounded-2xl space-y-4">
+                  <div className="flex items-center gap-2 border-b border-slate-150 pb-2 mb-2">
+                    <span className="text-sm font-bold text-slate-800">
+                      4. {t("Cấu hình AI (Gemini Premium)", "AI Configuration (Gemini)")}
+                    </span>
+                  </div>
+
+                  {/* Gemini API Key configuration field */}
+                  <div>
+                    <label className="block text-[10px] font-bold text-indigo-650 mb-1.5 uppercase tracking-wider font-sans">
+                      Khóa API Gemini (GEMINI_API_KEY)
+                    </label>
+                    <input
+                      type="password"
+                      className="w-full text-sm border border-slate-200 rounded-xl p-3 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors font-mono text-slate-850"
+                      value={geminiApiKey}
+                      onChange={(e) => setGeminiApiKey(e.target.value)}
+                      placeholder="AI_Studio_Gemini_API_Key..."
+                    />
+                    <p className="text-[10px] text-slate-455 mt-1.5 font-medium leading-relaxed">
+                      Dùng để kích hoạt tính năng kéo thả ảnh, cho phép AI tự động phân tích MST, tên doanh nghiệp, địa chỉ và số điện thoại. Mã khóa này được lưu trữ trực tiếp vào cơ sở dữ liệu Firestore một cách bảo mật dưới máy chủ và không bao giờ bị lộ ra ngoài trình duyệt. Bạn có thể tạo miễn phí tại Google AI Studio.
+                    </p>
                   </div>
                 </div>
 
