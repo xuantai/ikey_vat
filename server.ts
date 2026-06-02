@@ -508,6 +508,30 @@ app.post("/api/lookup-bank-account", async (req, res) => {
   }
 });
 
+// Proxy Image to bypass CORS on html-to-image canvas capture (mainly for Safari/iOS)
+app.get("/api/proxy-image", async (req, res) => {
+  try {
+    const targetUrl = req.query.url as string;
+    if (!targetUrl) return res.status(400).send("Missing URL");
+    
+    const response = await fetch(targetUrl, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+      }
+    });
+    if (!response.ok) throw new Error("Failed to fetch image");
+    
+    res.set("Content-Type", response.headers.get("content-type") || "image/jpeg");
+    res.set("Cache-Control", "public, max-age=31536000"); // Cache it aggressively
+    
+    // We send as binary buffer
+    const arrayBuffer = await response.arrayBuffer();
+    res.send(Buffer.from(arrayBuffer));
+  } catch (err) {
+    res.status(500).send("Error proxying image");
+  }
+});
+
 // 6. Update company profile (AdminCP actions)
 app.put("/api/companies/:username", async (req, res) => {
   const username = req.params.username.toLowerCase().trim();

@@ -35,6 +35,14 @@ import { CompanyInfo, BankConfig, ApiResponse } from "./types";
 import { VIETNAMESE_BANKS, PRESET_COLORS, SAMPLE_COMPANY } from "./data";
 import { toPng, toJpeg } from "html-to-image";
 
+
+const proxyImageUrl = (url) => {
+  if (!url) return url;
+  if (url.startsWith('https://img.vietqr.io')) return url; // Already fully CORS compliant
+  if (url.startsWith('data:')) return url;
+  return `/api/proxy-image?url=${encodeURIComponent(url)}`;
+};
+
 export const BANK_BINS: Record<string, string> = {
   vcb: "970436",
   mbbank: "970422",
@@ -602,10 +610,42 @@ export default function App() {
       const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
       
       if (isIOS) {
-        // Safari and iOS browsers block automated downloads and Web Share APIs from non-synchronous user interactions.
-        // The most reliable way to save an image to the iOS Photos album is giving them the image to long-press.
-        setCapturedImageUrl(dataUrl);
-        showToast("Hãy chạm giữ vào ảnh để lưu!", "success");
+        // Option 1: Native Share Sheet (Save to Photos natively)
+        try {
+          const res = await fetch(dataUrl);
+          const blob = await res.blob();
+          const file = new File([blob], filename, { type: 'image/jpeg' });
+          if (navigator.canShare && navigator.canShare({ files: [file] })) {
+             await navigator.share({
+               files: [file],
+               title: 'Thông tin hóa đơn',
+             });
+             setIsCapturing(false);
+             showToast("Đã lưu ảnh thành công!", "success");
+             return;
+          }
+        } catch (e) {
+          console.error("Web Share failed:", e);
+        }
+        
+        // Option 2: Fallback to Blob Open in New Tab
+        try {
+          const res = await fetch(dataUrl);
+          const blob = await res.blob();
+          const blobUrl = URL.createObjectURL(blob);
+          const newWindow = window.open(blobUrl, "_blank");
+          if (newWindow) {
+             showToast("Đã mở ảnh. Bạn có thể lưu ảnh từ tab này!", "success");
+          } else {
+             throw new Error("Popup blocked");
+          }
+        } catch (err) {
+          const link = document.createElement("a");
+          link.download = filename;
+          link.href = dataUrl;
+          link.click();
+          showToast("Đã tải ảnh hóa đơn!", "success");
+        }
       } else {
         // Desktop and Android handle standard downloads perfectly
         const link = document.createElement("a");
@@ -1575,23 +1615,6 @@ export default function App() {
         </div>
       )}
 
-      {/* iOS Modal View for captured image */}
-      {capturedImageUrl && (
-        <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex flex-col items-center justify-center p-6 animate-fade-in">
-          <p className="text-white font-medium mb-4 text-center">Ảnh đã sẵn sàng. Chạm và giữ vào ảnh, sau đó chọn <b>"Lưu hình ảnh"</b>.</p>
-          <div className="relative w-full max-w-sm rounded-[33px] overflow-hidden shadow-2xl">
-            <img src={capturedImageUrl} alt="Captured invoice" className="w-full h-auto object-contain"  crossOrigin="anonymous" referrerPolicy="no-referrer" />
-          </div>
-          <button 
-            type="button" 
-            onClick={() => setCapturedImageUrl(null)}
-            className="mt-8 px-6 py-3 bg-white/20 hover:bg-white/30 border border-white/30 text-white rounded-xl font-medium transition-colors"
-          >
-            Đóng
-          </button>
-        </div>
-      )}
-
       {/* HEADER BAR */}
       {route !== "view" && (
       <header className="sticky top-0 z-40 bg-white border-b border-slate-200 px-4 md:px-6 py-4 shadow-sm">
@@ -2353,7 +2376,7 @@ export default function App() {
                         <div className="relative z-10 flex flex-col items-center w-full">
                           {regLogoUrl && (
                             <div className="w-16 h-16 bg-white/90 rounded-2xl border border-slate-200 flex items-center justify-center p-2 mb-3 overflow-hidden shadow-sm shrink-0" style={{ borderColor: regPrimaryColor }}>
-                              <img src={regLogoUrl} alt="Logo preview" referrerPolicy="no-referrer" className="max-w-full max-h-full object-contain mix-blend-multiply"  crossOrigin="anonymous" />
+                              <img src={regLogoUrl} alt="Logo preview" referrerPolicy="no-referrer" className={`max-w-full max-h-full object-contain ${isCapturing ? "" : "mix-blend-multiply"}`}  crossOrigin="anonymous" />
                             </div>
                           )}
 
@@ -2531,10 +2554,10 @@ export default function App() {
               {activeCompany.logoUrl ? (
                 <>
                   <div className="absolute top-1/4 left-1/4 w-[120vw] h-[120vh] -translate-x-1/2 -translate-y-1/2 opacity-30 blur-[120px] mix-blend-multiply">
-                    <img src={activeCompany.logoUrl} className="w-full h-full object-cover" alt=""  crossOrigin="anonymous" referrerPolicy="no-referrer" />
+                    <img src={proxyImageUrl(activeCompany.logoUrl)} className="w-full h-full object-cover" alt=""  crossOrigin="anonymous" referrerPolicy="no-referrer" />
                   </div>
                   <div className="absolute bottom-0 right-0 w-[80vw] h-[80vw] translate-x-1/3 translate-y-1/3 opacity-20 blur-[100px] mix-blend-multiply">
-                    <img src={activeCompany.logoUrl} className="w-full h-full object-cover" alt=""  crossOrigin="anonymous" referrerPolicy="no-referrer" />
+                    <img src={proxyImageUrl(activeCompany.logoUrl)} className="w-full h-full object-cover" alt=""  crossOrigin="anonymous" referrerPolicy="no-referrer" />
                   </div>
                 </>
               ) : (
@@ -2554,7 +2577,7 @@ export default function App() {
                 {activeCompany.logoUrl && (
                   <div className="absolute inset-0 z-0 pointer-events-none select-none opacity-15 mix-blend-multiply flex items-center justify-center overflow-hidden rounded-none md:rounded-[33px]">
                     <img 
-                      src={activeCompany.logoUrl} 
+                      src={proxyImageUrl(activeCompany.logoUrl)} 
                       alt="" 
                       className="w-[150%] h-[150%] object-cover blur-[8px]" 
                     />
@@ -2577,11 +2600,11 @@ export default function App() {
                   {activeCompany.logoUrl ? (
                     <>
                       {/* Blurred logo aesthetic bubbles */}
-                      <div className="absolute top-1/4 left-1/4 w-[120%] h-[120%] -translate-x-1/2 -translate-y-1/2 opacity-25 blur-[100px] mix-blend-multiply">
-                        <img src={activeCompany.logoUrl} className="w-full h-full object-cover" alt="" referrerPolicy="no-referrer" crossOrigin="anonymous" />
+                      <div className="absolute top-1/4 left-1/4 w-[120%] h-[120%] -translate-x-1/2 -translate-y-1/2 opacity-[0.15] blur-3xl">
+                        <img src={proxyImageUrl(activeCompany.logoUrl)} className="w-full h-full object-cover" alt="" referrerPolicy="no-referrer" crossOrigin="anonymous" />
                       </div>
-                      <div className="absolute bottom-0 right-0 w-[80%] h-[80%] translate-x-1/3 translate-y-1/3 opacity-15 blur-[80px] mix-blend-multiply">
-                        <img src={activeCompany.logoUrl} className="w-full h-full object-cover" alt="" referrerPolicy="no-referrer" crossOrigin="anonymous" />
+                      <div className="absolute bottom-0 right-0 w-[80%] h-[80%] translate-x-1/3 translate-y-1/3 opacity-[0.12] blur-3xl">
+                        <img src={proxyImageUrl(activeCompany.logoUrl)} className="w-full h-full object-cover" alt="" referrerPolicy="no-referrer" crossOrigin="anonymous" />
                       </div>
                     </>
                   ) : (
@@ -2593,9 +2616,9 @@ export default function App() {
 
                   {/* Brand logo overlay blend inside the card */}
                   {activeCompany.logoUrl && (
-                    <div className="absolute inset-0 z-0 pointer-events-none select-none opacity-10 mix-blend-multiply flex items-center justify-center overflow-hidden rounded-none md:rounded-[33px]">
+                    <div className="absolute inset-0 z-0 pointer-events-none select-none opacity-10 flex items-center justify-center overflow-hidden rounded-none md:rounded-[33px]">
                       <img 
-                        src={activeCompany.logoUrl} 
+                        src={proxyImageUrl(activeCompany.logoUrl)} 
                         alt="" 
                         crossOrigin="anonymous"
                         referrerPolicy="no-referrer"
@@ -2610,14 +2633,14 @@ export default function App() {
                   {activeCompany.logoUrl && (
                     <div 
                       className="absolute inset-0 opacity-[0.10] bg-center bg-cover scale-125 blur-[4px] pointer-events-none" 
-                      style={{ backgroundImage: `url(${activeCompany.logoUrl})` }}
+                      style={{ backgroundImage: `url(${proxyImageUrl(activeCompany.logoUrl)})` }}
                     />
                   )}
                   <div className="relative z-10 flex flex-col items-center w-full">
                     {/* Logo centered */}
                     {activeCompany.logoUrl ? (
                       <div className={`w-20 h-20 rounded-2xl border border-slate-200 flex items-center justify-center p-3 mb-2.5 shrink-0 shadow-sm relative group ${isCapturing ? "bg-white" : "bg-white/90"}`}>
-                        <img src={activeCompany.logoUrl} alt="Company Logo" crossOrigin="anonymous" referrerPolicy="no-referrer" className="max-w-full max-h-full object-contain mix-blend-multiply" />
+                        <img src={proxyImageUrl(activeCompany.logoUrl)} alt="Company Logo" crossOrigin="anonymous" referrerPolicy="no-referrer" className={`max-w-full max-h-full object-contain ${isCapturing ? "" : "mix-blend-multiply"}`} />
                       </div>
                     ) : null}
 
@@ -2894,7 +2917,7 @@ Email nhận hóa đơn: ${activeCompany.email || ""}${activeCompany.bankAccount
                             alt="VietQR" 
                             crossOrigin="anonymous"
                             referrerPolicy="no-referrer"
-                            className={`w-full h-full mix-blend-multiply ${isCapturing ? 'object-contain' : 'object-contain'}`}
+                            className={`w-full h-full ${isCapturing ? 'object-contain' : 'mix-blend-multiply object-contain'}`}
                           />
                         </div>
                       </div>
@@ -2954,20 +2977,20 @@ Email nhận hóa đơn: ${activeCompany.email || ""}${activeCompany.bankAccount
                 )}
 
                 {/* Bottom design credits */}
-                <div className={`${isCapturing ? 'mt-2 border-none pb-4 pt-1' : 'mt-auto pt-4 pb-6 border-t'} bg-white/80 backdrop-blur-md px-6 md:pb-5 border-slate-200/50 flex justify-between items-center text-xs text-slate-400 w-full rounded-b-none md:rounded-b-[33px]`}>
+                <div className={`${isCapturing ? 'mt-2 border-none pb-4 pt-1' : 'mt-auto pt-4 pb-6 border-t'} bg-white/80 backdrop-blur-md px-6 md:pb-5 border-slate-200/50 flex justify-between items-center text-xs text-slate-400 w-full rounded-b-none md:rounded-b-[33px] relative z-20 transform-gpu`}>
                   {isCapturing ? (
-                    <span className="flex items-center gap-1.5 w-full justify-center text-slate-500 font-medium">
+                    <span className="flex items-center gap-1.5 w-full justify-center text-slate-500 font-medium relative z-10 transform-gpu">
                       <span className="uppercase text-[9px] tracking-widest text-slate-400 font-bold">{t("Nguồn", "Source")}:</span> 
                       <span className="text-indigo-600 font-mono font-bold tracking-wide">vat.{appDomain}/{activeCompany.username}</span>
                     </span>
                   ) : (
-                    <span className="flex items-center gap-1">
+                    <span className="flex items-center gap-1 relative z-10 transform-gpu">
                       Xây dựng bởi <button type="button" onClick={navigateToHome} className="font-bold text-emerald-600 hover:text-emerald-700 hover:underline">{appDomain}</button>
                     </span>
                   )}
                   
                   {!isCapturing && (
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 relative z-10 transform-gpu">
                       <button 
                         onClick={() => navigateToSlug(activeCompany.username, "admin")}
                         className="text-[11px] font-semibold text-slate-500 hover:text-slate-800 flex items-center gap-1 hover:underline"
