@@ -29,8 +29,9 @@ import {
   Globe,
   Heart,
   RotateCcw,
-  Image as ImageIcon,
+  ImageIcon,
   Scan,
+  Share2,
 } from "lucide-react";
 import { CompanyInfo, BankConfig, ApiResponse } from "./types";
 import { VIETNAMESE_BANKS, PRESET_COLORS, SAMPLE_COMPANY } from "./data";
@@ -646,6 +647,27 @@ export default function App() {
     }
   };
 
+  const handleShareInvoice = async () => {
+    if (!activeCompany) return;
+    const shareData = {
+      title: `Thông tin xuất hóa đơn ${activeCompany.companyName}`,
+      text: `Thông tin xuất hóa đơn ${activeCompany.companyName}`,
+      url: globalBaseUrl ? `${globalBaseUrl.replace(/\/$/, '')}/${activeCompany.username}` : window.location.href,
+    };
+    if (navigator.share) {
+      try {
+        await navigator.share(shareData);
+      } catch (err: any) {
+        if (err.name !== 'AbortError') {
+          console.error("Error sharing:", err);
+          showToast("Trình duyệt không hỗ trợ chia sẻ trực tiếp", "error");
+        }
+      }
+    } else {
+      copyToClipboard(shareData.url, "Đường dẫn chia sẻ");
+    }
+  };
+
   const handleCaptureImage = async () => {
     const node = document.getElementById("invoice-card-to-capture");
     if (!node) {
@@ -1208,6 +1230,7 @@ export default function App() {
     name: string;
     address?: string;
     phone?: string;
+    domain?: string;
   }) => {
     setSmartSuggestions([]);
     setSmartSearchQuery("");
@@ -1227,6 +1250,10 @@ export default function App() {
     if (company.phone) {
       setRegPhone(company.phone);
       setTempPhone(company.phone);
+    }
+
+    if (company.domain) {
+      setRegLogoUrl(`https://logo.clearbit.com/${company.domain.replace(/^https?:\/\//i, '').replace(/\/.*$/, '')}`);
     }
 
     // Auto sync username based on trimmed and clean company name if username is empty or standard template
@@ -2062,29 +2089,23 @@ export default function App() {
 
                 {/* Search / filter box integrated with Unified Live Autocomplete Search */}
                 <div className="mt-8 max-w-md mx-auto relative z-35 text-left">
-                  {/* AI Scanning Overlay */}
-                  {aiScanning && (
-                    <div className="absolute -inset-2 bg-indigo-50/80 backdrop-blur-[2px] rounded-2xl flex items-center justify-center z-50 shadow-inner">
-                      <div className="flex items-center gap-2 px-4 py-2 bg-indigo-600 shadow-lg border border-indigo-500 rounded-full text-white transform scale-105 transition-all">
-                        <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
-                        <span className="text-xs font-bold tracking-widest uppercase animate-pulse">Đang phân tích ảnh...</span>
-                      </div>
-                    </div>
-                  )}
-                  
                   <div 
-                    className={`flex items-center p-1 shadow-xl box-border rounded-xl border transition-all duration-300 ${isDraggingOverTarget ? 'border-dashed border-2 border-indigo-500 bg-indigo-50 ring-4 ring-indigo-100/50 scale-105' : aiScanning ? 'border-indigo-400 ring-4 ring-indigo-100 animate-pulse bg-indigo-50/30' : 'bg-white border-slate-200 focus-within:border-indigo-500 focus-within:ring-4 focus-within:ring-indigo-100'}`}
+                    className={`flex items-center p-1 shadow-xl box-border rounded-xl border transition-all duration-300 ${isDraggingOverTarget ? 'border-dashed border-2 border-indigo-500 bg-indigo-50 ring-4 ring-indigo-100/50 scale-105' : aiScanning ? 'border-indigo-500 bg-indigo-600 ring-4 ring-indigo-200' : 'bg-white border-slate-200 focus-within:border-indigo-500 focus-within:ring-4 focus-within:ring-indigo-100'}`}
                     onDrop={handleDropScan}
                     onDragOver={handleDragOverScan}
                     onDragLeave={handleDragLeaveScan}
                   >
                     <div className="flex-1 flex items-center pl-3">
-                      <Search className="text-slate-400 shrink-0 mr-2" size={18} />
+                      {aiScanning ? (
+                        <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin shrink-0 mr-3"></span>
+                      ) : (
+                        <Search className={`shrink-0 mr-2 ${aiScanning ? 'text-white' : 'text-slate-400'}`} size={18} />
+                      )}
                       <div className="relative w-full flex items-center overflow-hidden">
                         {!searchQuery && (
-                          <div className="absolute inset-0 flex items-center pointer-events-none whitespace-nowrap text-slate-400 text-sm font-semibold select-none z-0">
-                            <span className="animate-marquee-mobile sm:animate-none">
-                              {aiScanning ? t("AI Đang phân tích ảnh...", "AI is scanning image...") : t("Nhập MST tìm nhanh, thả ảnh để AI đọc...", "Enter tax code or drop image to let AI fill out...")}
+                          <div className={`absolute inset-0 flex items-center pointer-events-none whitespace-nowrap text-sm font-semibold select-none z-0 ${aiScanning ? 'text-white' : 'text-slate-400'}`}>
+                            <span className="animate-marquee">
+                              {aiScanning ? t("Đang phân tích ảnh...", "Scanning image...") : t("Nhập MST để tìm nhanh, thả ảnh để AI tự nhập thông tin.", "Enter tax code or drop image to let AI fill out.")}
                             </span>
                           </div>
                         )}
@@ -2093,14 +2114,30 @@ export default function App() {
                           value={searchQuery}
                           onChange={(e) => handleHeroSearchChange(e.target.value)}
                           onPaste={handlePasteScan}
-                          className="w-full text-sm py-2.5 px-3 bg-transparent focus:outline-none cursor-text relative z-10 text-slate-800"
+                          disabled={aiScanning}
+                          className={`w-full text-sm py-2.5 px-3 bg-transparent focus:outline-none cursor-text relative z-10 ${aiScanning ? 'text-white cursor-wait' : 'text-slate-800'}`}
                         />
                       </div>
                     </div>
                     
                     <div className="flex items-center gap-1 shrink-0 pr-1">
-                      {smartSearchLoading && (
-                        <span className="w-4 h-4 border-2 border-indigo-200 border-t-indigo-650 rounded-full animate-spin block"></span>
+                      {smartSearchLoading && !aiScanning && (
+                        <span className="w-4 h-4 border-2 border-indigo-200 border-t-indigo-650 rounded-full animate-spin block mr-2"></span>
+                      )}
+                      {isCapturing ? null : (
+                        <div className="flex items-center">
+                          <button
+                            className={`p-2 rounded-lg transition-colors flex items-center justify-center shrink-0 ${aiScanning ? 'text-white/70 hover:bg-white/20 hover:text-white' : 'text-slate-400 hover:bg-slate-100 hover:text-indigo-600'}`}
+                            onClick={() => {
+                              const e = document.getElementById("ai-scan-upload");
+                              if(e) e.click();
+                            }}
+                            title="Tải ảnh lên"
+                            disabled={aiScanning}
+                          >
+                            <Scan size={18} className={aiScanning ? "animate-pulse font-bold" : ""} />
+                          </button>
+                        </div>
                       )}
                       <input
                         type="file"
@@ -2110,13 +2147,6 @@ export default function App() {
                         onChange={handleFileSelectScan}
                         disabled={aiScanning}
                       />
-                      <label
-                        htmlFor="ai-scan-upload"
-                        className={`flex items-center justify-center p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-indigo-600 transition-colors ${aiScanning ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-                        title="Tải ảnh lên để AI quét MST"
-                      >
-                        <Scan size={18} className={aiScanning ? "animate-pulse text-indigo-600" : ""} />
-                      </label>
                     </div>
                   </div>
 
@@ -2791,23 +2821,18 @@ export default function App() {
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <div className="md:col-span-1 bg-slate-50/50 p-4 rounded-xl border border-slate-200 flex justify-center items-center">
-                      <div className="flex flex-col items-center justify-center h-full gap-3">
-                        <button
-                          type="button"
-                          onClick={() => setRegIsPublic(!regIsPublic)}
-                          className={`relative inline-flex h-[36px] w-[64px] shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600 focus-visible:ring-offset-2 ${regIsPublic ? 'bg-indigo-600' : 'bg-slate-300'}`}
-                        >
-                          <span className="sr-only">Cài đặt hiển thị</span>
-                          <span
-                            aria-hidden="true"
-                            className={`pointer-events-none inline-block h-[28px] w-[28px] transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${regIsPublic ? 'translate-x-[28px]' : 'translate-x-0'}`}
-                          />
-                        </button>
+                    <div className="md:col-span-1 bg-slate-50/50 p-2 rounded-xl border border-slate-200">
+                      <label className="flex items-center justify-center p-3 h-full bg-white rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer select-none transition-all shadow-sm">
+                        <input
+                          type="checkbox"
+                          checked={regIsPublic}
+                          onChange={(e) => setRegIsPublic(e.target.checked)}
+                          className="w-4 h-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500 cursor-pointer accent-indigo-600 mr-2"
+                        />
                         <span className="text-[11px] font-black text-slate-700 uppercase tracking-widest whitespace-nowrap">
                           {regIsPublic ? t("Công Khai", "Public") : t("Riêng tư", "Private")}
                         </span>
-                      </div>
+                      </label>
                     </div>
 
                     {/* Captcha Verify */}
@@ -2943,6 +2968,7 @@ export default function App() {
                                   <img
                                     src={regLogoUrl}
                                     alt="Logo preview"
+                                    onError={() => setRegLogoUrl("")}
                                     referrerPolicy="no-referrer"
                                     className={`max-w-full max-h-full object-contain ${isCapturing ? "" : "mix-blend-multiply"}`}
                                     crossOrigin="anonymous"
@@ -3313,6 +3339,7 @@ export default function App() {
                             <img
                               src={proxyImageUrl(activeCompany.logoUrl)}
                               alt="Company Logo"
+                              onError={() => setActiveCompany({...activeCompany, logoUrl: ""})}
                               crossOrigin="anonymous"
                               referrerPolicy="no-referrer"
                               className={`max-w-full max-h-full object-contain ${isCapturing ? "" : "mix-blend-multiply"}`}
@@ -3661,9 +3688,9 @@ export default function App() {
                         )}
                       </div>
 
-                      {/* Actions Grid: Lưu Text & Lưu Ảnh */}
+                      {/* Actions Grid: Lưu Text & Lưu Ảnh & Chia se */}
                       {!isCapturing && (
-                        <div className="grid grid-cols-2 gap-3 px-6 pb-1 no-capture">
+                        <div className="flex gap-2.5 px-6 pb-1 no-capture justify-between">
                           {/* Button 1: Sao chép Toàn bộ Text */}
                           <button
                             type="button"
@@ -3685,17 +3712,27 @@ Email nhận hóa đơn: ${activeCompany.email || ""}${activeCompany.bankAccount
                                 "Toàn bộ thông tin dạng Text",
                               );
                             }}
-                            className="py-3 px-3 rounded-xl border border-indigo-200 bg-indigo-50/40 hover:bg-slate-900 hover:text-white hover:border-slate-900 hover:shadow-md transition-all flex items-center justify-center gap-1.5 text-xs text-indigo-700 font-extrabold cursor-pointer select-none active:scale-[0.98] shadow-sm uppercase tracking-wide shrink-0"
+                            className="flex-1 py-3 px-2 rounded-xl border border-indigo-200 bg-indigo-50/40 hover:bg-slate-900 hover:text-white hover:border-slate-900 hover:shadow-md transition-all flex items-center justify-center gap-1.5 text-xs text-indigo-700 font-extrabold cursor-pointer select-none active:scale-[0.98] shadow-sm uppercase tracking-wide shrink-0"
                           >
                             <Copy size={13} className="stroke-[2.5]" />
                             <span>{t("Lưu Text", "Save Text")}</span>
+                          </button>
+
+                          {/* Button Chia sẻ */}
+                          <button
+                            type="button"
+                            onClick={handleShareInvoice}
+                            className="w-[3.25rem] py-3 px-2 rounded-xl border border-sky-200 bg-sky-50/40 hover:bg-slate-900 hover:text-white hover:border-slate-900 hover:shadow-md transition-all flex items-center justify-center cursor-pointer shadow-sm text-sky-700 shrink-0 active:scale-[0.98]"
+                            title="Chia sẻ lên mạng xã hội/Telegram/Zalo"
+                          >
+                            <Share2 size={16} className="stroke-[2.5]" />
                           </button>
 
                           {/* Button 2: Lưu Ảnh (Chụp màn hình thẻ thông tin) */}
                           <button
                             type="button"
                             onClick={handleCaptureImage}
-                            className="py-3 px-3 rounded-xl border border-emerald-200 bg-emerald-50/40 hover:bg-slate-900 hover:text-white hover:border-slate-900 hover:shadow-md transition-all flex items-center justify-center gap-1.5 text-xs text-emerald-700 font-extrabold cursor-pointer select-none active:scale-[0.98] shadow-sm uppercase tracking-wide shrink-0"
+                            className="flex-1 py-3 px-2 rounded-xl border border-emerald-200 bg-emerald-50/40 hover:bg-slate-900 hover:text-white hover:border-slate-900 hover:shadow-md transition-all flex items-center justify-center gap-1.5 text-xs text-emerald-700 font-extrabold cursor-pointer select-none active:scale-[0.98] shadow-sm uppercase tracking-wide shrink-0"
                           >
                             <Download size={13} className="stroke-[2.5]" />
                             <span>{t("Lưu Ảnh", "Save Image")}</span>
@@ -4153,6 +4190,7 @@ Email nhận hóa đơn: ${activeCompany.email || ""}${activeCompany.bankAccount
                                 <img
                                   src={editLogoUrl}
                                   alt="Logo"
+                                  onError={() => setEditLogoUrl("")}
                                   referrerPolicy="no-referrer"
                                   className="max-w-full max-h-full object-contain"
                                   crossOrigin="anonymous"
@@ -4408,19 +4446,16 @@ Email nhận hóa đơn: ${activeCompany.email || ""}${activeCompany.bankAccount
                             />
                           </div>
 
-                          <div className="pt-4 border-t border-slate-200 flex items-center justify-between">
-                            <span className="text-[10px] font-bold text-slate-700 uppercase tracking-wider">{editIsPublic ? t("Công Khai", "Public") : t("Riêng tư", "Private")}</span>
-                            <button
-                              type="button"
-                              onClick={() => setEditIsPublic(!editIsPublic)}
-                              className={`relative inline-flex h-[32px] w-[56px] shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600 focus-visible:ring-offset-2 ${editIsPublic ? 'bg-indigo-600' : 'bg-slate-300'}`}
-                            >
-                              <span className="sr-only">Cài đặt hiển thị</span>
-                              <span
-                                aria-hidden="true"
-                                className={`pointer-events-none inline-block h-[24px] w-[24px] transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${editIsPublic ? 'translate-x-[24px]' : 'translate-x-0'}`}
+                          <div className="pt-4 border-t border-slate-200">
+                            <label className="flex items-center justify-between p-3 bg-white rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer select-none transition-all shadow-sm">
+                              <span className="text-[10px] font-bold text-slate-700 uppercase tracking-wider">{editIsPublic ? t("Công Khai", "Public") : t("Riêng tư", "Private")}</span>
+                              <input
+                                type="checkbox"
+                                checked={editIsPublic}
+                                onChange={(e) => setEditIsPublic(e.target.checked)}
+                                className="w-4 h-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500 cursor-pointer accent-indigo-600"
                               />
-                            </button>
+                            </label>
                           </div>
                         </div>
 

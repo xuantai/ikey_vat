@@ -49,15 +49,14 @@ body {
   -ms-user-select: none !important;
 }
 
-@keyframes marquee-mobile {
+@keyframes marquee {
   0%, 10% { transform: translateX(0); }
-  45%, 55% { transform: translateX(calc(-100% + 240px)); }
+  45%, 55% { transform: translateX(calc(-100% + 150px)); }
   90%, 100% { transform: translateX(0); }
 }
-@media (max-width: 640px) {
-  .animate-marquee-mobile {
-    animation: marquee-mobile 8s linear infinite;
-    display: inline-block;
-    padding-right: 20px;
-  }
+
+.animate-marquee {
+  animation: marquee 12s linear infinite;
+  display: inline-block;
+  padding-right: 20px;
 }

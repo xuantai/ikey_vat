@@ -663,7 +663,7 @@ app.post("/api/scan-image", async (req, res) => {
     };
 
     const textPart = {
-      text: "Trích xuất thông tin doanh nghiệp, hoá đơn, hoặc danh thiếp từ hình ảnh này (nếu có). Cố gắng tìm Mã số thuế (taxCode). Các trường khác: Tên công ty (name), Địa chỉ (address) và Số điện thoại (phone). Không bịa thông tin nếu không có.",
+      text: "Trích xuất thông tin doanh nghiệp, hoá đơn, hoặc danh thiếp từ hình ảnh. Tìm Mã số thuế (taxCode). Các trường: Tên công ty (name), Địa chỉ (address), Số điện thoại (phone), và tên miền website (domain). CHÚ Ý: Nếu là các công ty/tập đoàn lớn (Viettel, Vingroup, FPT, Vietcombank, v.v.), BẠN PHẢI điền chính xác tên miền chính thức của họ vào trường domain, kể cả khi trên ảnh không ghi (VD: viettel.com.vn cho Viettel, vingroup.net cho Vingroup). Chỉ ghi mỗi tên gốc, VD: viettel.com.vn. Không bịa với công ty nhỏ.",
     };
 
     const response = await ai.models.generateContent({
@@ -677,7 +677,8 @@ app.post("/api/scan-image", async (req, res) => {
             taxCode: { type: Type.STRING },
             name: { type: Type.STRING },
             address: { type: Type.STRING },
-            phone: { type: Type.STRING }
+            phone: { type: Type.STRING },
+            domain: { type: Type.STRING }
           }
         }
       }
@@ -692,7 +693,7 @@ app.post("/api/scan-image", async (req, res) => {
   } catch (err: any) {
     console.error("Lỗi AI Scan:", err);
     if (err.message?.includes("exceeded your current quota") || err.status === 429) {
-      return res.status(429).json({ success: false, message: "API Gemini của bạn đã hết lượt sử dụng miễn phí hôm nay. Vui lòng thử lại sau hoặc nâng cấp gói API." });
+      return res.status(429).json({ success: false, message: "Tính năng phân tích ảnh bằng AI bị quá tải, bạn vui lòng tìm bằng MST hoặc nhập thủ công" });
     }
     res.status(500).json({ success: false, message: "Lỗi AI phân tích: " + (err.message || 'Unknown error') });
   }
