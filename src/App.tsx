@@ -30,6 +30,7 @@ import {
   Heart,
   RotateCcw,
   Image as ImageIcon,
+  Scan,
 } from "lucide-react";
 import { CompanyInfo, BankConfig, ApiResponse } from "./types";
 import { VIETNAMESE_BANKS, PRESET_COLORS, SAMPLE_COMPANY } from "./data";
@@ -244,6 +245,8 @@ export default function App() {
   // Search/Filter in Home
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [qrModalOpen, setQrModalOpen] = useState<boolean>(false);
+  const [aiScanning, setAiScanning] = useState<boolean>(false);
+  const [isDraggingOverTarget, setIsDraggingOverTarget] = useState<boolean>(false);
 
   // Translation, Support developer modal, and inline delete confirmation states
   const [lang, setLang] = useState<"vi" | "en">("vi");
@@ -1250,6 +1253,83 @@ export default function App() {
     }
   };
 
+  const processScanImage = async (file: File) => {
+    if (!file || !file.type.startsWith("image/")) {
+      showToast("Vui lòng chọn một tệp hình ảnh.", "error");
+      return;
+    }
+    setAiScanning(true);
+    setSmartSearchLoading(true);
+    showToast("AI Đang phân tích ảnh bạn vừa tải lên...", "info");
+    
+    // Auto-scroll to creation form early to show we are doing something there
+    const elem = document.getElementById("create-form");
+    if (elem) {
+      elem.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+
+    try {
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const base64String = reader.result as string;
+        try {
+          const res = await fetch("/api/scan-image", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ imageBase64: base64String }),
+          });
+          const json = await res.json();
+          if (json.success && json.data) {
+            const companyData = json.data;
+            if (!companyData.taxCode && !companyData.name) {
+              showToast("Không tìm thấy thông tin trên ảnh.", "error");
+            } else {
+              showToast("Quét thành công! Đã tự động điền thông tin.", "success");
+              await selectCompanySuggestion(companyData);
+            }
+          } else {
+            showToast(json.message || "Lỗi đọc dữ liệu ảnh.", "error");
+          }
+        } catch (e) {
+          showToast("Lỗi kết nối máy chủ AI.", "error");
+        } finally {
+          setAiScanning(false);
+          setSmartSearchLoading(false);
+        }
+      };
+      reader.readAsDataURL(file);
+    } catch (e) {
+      setAiScanning(false);
+      setSmartSearchLoading(false);
+    }
+  };
+
+  const handleDropScan = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDraggingOverTarget(false);
+    const file = e.dataTransfer.files[0];
+    if (file) {
+      processScanImage(file);
+    }
+  };
+
+  const handleDragOverScan = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDraggingOverTarget(true);
+  };
+  
+  const handleDragLeaveScan = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDraggingOverTarget(false);
+  };
+
+  const handleFileSelectScan = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      processScanImage(file);
+    }
+  };
+
   // Helper to extract dominant color from Base64 logo
   const extractDominantColor = (base64Str: string): Promise<string> => {
     return new Promise((resolve) => {
@@ -1964,24 +2044,44 @@ export default function App() {
 
                 {/* Search / filter box integrated with Unified Live Autocomplete Search */}
                 <div className="mt-8 max-w-md mx-auto relative z-35 text-left">
-                  <div className="flex gap-2 p-1 bg-white shadow-lg rounded-lg border border-slate-200 focus-within:border-indigo-500 focus-within:ring-4 focus-within:ring-indigo-100 transition-all">
+                  <div 
+                    className={`flex gap-2 p-1 shadow-lg rounded-lg border transition-all ${isDraggingOverTarget ? 'border-dashed border-2 border-indigo-500 bg-indigo-50 ring-4 ring-indigo-100/50 scale-105' : 'bg-white border-slate-200 focus-within:border-indigo-500 focus-within:ring-4 focus-within:ring-indigo-100'}`}
+                    onDrop={handleDropScan}
+                    onDragOver={handleDragOverScan}
+                    onDragLeave={handleDragLeaveScan}
+                  >
                     <div className="relative flex-1 flex items-center pl-3">
                       <Search className="text-slate-400 shrink-0" size={18} />
                       <input
                         type="text"
                         placeholder={t(
-                          "Nhập MST để tìm kiếm nhanh",
-                          "Enter tax code to fast search...",
+                          "Nhập MST để tìm nhanh hoặc thả ảnh vào để AI tự điền",
+                          "Enter tax code or drop image to let AI fill out...",
                         )}
                         value={searchQuery}
                         onChange={(e) => handleHeroSearchChange(e.target.value)}
                         className="w-full text-sm py-2.5 px-2 bg-transparent focus:outline-none placeholder-slate-400 font-semibold cursor-text"
                       />
-                      {smartSearchLoading && (
-                        <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                      <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                        {smartSearchLoading && (
                           <span className="w-4 h-4 border-2 border-indigo-200 border-t-indigo-650 rounded-full animate-spin block"></span>
-                        </div>
-                      )}
+                        )}
+                        <input
+                          type="file"
+                          accept="image/*"
+                          id="ai-scan-upload"
+                          className="hidden"
+                          onChange={handleFileSelectScan}
+                          disabled={aiScanning}
+                        />
+                        <label
+                          htmlFor="ai-scan-upload"
+                          className={`p-1.5 rounded-md hover:bg-slate-100 text-slate-400 hover:text-indigo-600 transition-colors ${aiScanning ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                          title="Tải ảnh lên để AI quét MST"
+                        >
+                          <Scan size={18} className={aiScanning ? "animate-pulse text-indigo-600" : ""} />
+                        </label>
+                      </div>
                     </div>
                   </div>
 

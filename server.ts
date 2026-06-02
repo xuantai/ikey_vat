@@ -22,6 +22,8 @@ const ADMIN_CONFIG = {
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ limit: "10mb", extended: true }));
 
+import { GoogleGenAI, Type } from "@google/genai";
+
 // Initialize Firebase SDK
 const firebaseConfigPath = path.join(process.cwd(), "firebase-applet-config.json");
 const firebaseConfig = JSON.parse(fs.readFileSync(firebaseConfigPath, "utf8"));
@@ -616,6 +618,62 @@ app.delete("/api/companies/:username", async (req, res) => {
     res.json({ success: true, message: `Đã xóa trang thông tin "${username}" thành công.` });
   } catch (err) {
     res.status(500).json({ success: false, message: "Lỗi hủy trang thông tin" });
+  }
+});
+
+// 8. AI Scan Image for Company Details
+app.post("/api/scan-image", async (req, res) => {
+  try {
+    const { imageBase64 } = req.body;
+    if (!imageBase64) return res.status(400).json({ error: "Missing image data" });
+
+    if (!process.env.GEMINI_API_KEY) {
+      return res.status(500).json({ error: "GEMINI_API_KEY is not configured on the server." });
+    }
+
+    const ai = new GoogleGenAI({
+      apiKey: process.env.GEMINI_API_KEY,
+      httpOptions: { headers: { "User-Agent": "aistudio-build" } }
+    });
+
+    const mimeMatch = imageBase64.match(/^data:(image\/\w+);base64,/);
+    const mimeType = mimeMatch ? mimeMatch[1] : "image/jpeg";
+    const data = imageBase64.replace(/^data:image\/\w+;base64,/, "");
+
+    const imagePart = {
+      inlineData: { mimeType, data },
+    };
+
+    const textPart = {
+      text: "Trích xuất thông tin doanh nghiệp, hoá đơn, hoặc danh thiếp từ hình ảnh này (nếu có). Cố gắng tìm Mã số thuế (taxCode). Các trường khác: Tên công ty (name), Địa chỉ (address) và Số điện thoại (phone). Không bịa thông tin nếu không có.",
+    };
+
+    const response = await ai.models.generateContent({
+      model: "gemini-3.5-flash",
+      contents: { parts: [imagePart, textPart] },
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            taxCode: { type: Type.STRING },
+            name: { type: Type.STRING },
+            address: { type: Type.STRING },
+            phone: { type: Type.STRING }
+          }
+        }
+      }
+    });
+
+    if (response.text) {
+      const result = JSON.parse(response.text);
+      res.json({ success: true, data: result });
+    } else {
+      res.json({ success: false, message: "Không đọc được dữ liệu." });
+    }
+  } catch (err: any) {
+    console.error("Lỗi AI Scan:", err);
+    res.status(500).json({ success: false, message: "Lỗi nội bộ server: " + err.message });
   }
 });
 
