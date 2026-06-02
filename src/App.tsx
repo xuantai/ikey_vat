@@ -2048,43 +2048,44 @@ export default function App() {
                 {/* Search / filter box integrated with Unified Live Autocomplete Search */}
                 <div className="mt-8 max-w-md mx-auto relative z-35 text-left">
                   <div 
-                    className={`flex gap-2 p-1 shadow-lg rounded-lg border transition-all ${isDraggingOverTarget ? 'border-dashed border-2 border-indigo-500 bg-indigo-50 ring-4 ring-indigo-100/50 scale-105' : 'bg-white border-slate-200 focus-within:border-indigo-500 focus-within:ring-4 focus-within:ring-indigo-100'}`}
+                    className={`flex items-center p-1 shadow-xl box-border rounded-xl border transition-all duration-300 ${isDraggingOverTarget ? 'border-dashed border-2 border-indigo-500 bg-indigo-50 ring-4 ring-indigo-100/50 scale-105' : aiScanning ? 'border-indigo-400 ring-4 ring-indigo-100 animate-pulse bg-indigo-50/30' : 'bg-white border-slate-200 focus-within:border-indigo-500 focus-within:ring-4 focus-within:ring-indigo-100'}`}
                     onDrop={handleDropScan}
                     onDragOver={handleDragOverScan}
                     onDragLeave={handleDragLeaveScan}
                   >
-                    <div className="flex-1 flex items-center pr-1 transition-all">
-                      <Search className="text-slate-400 shrink-0 ml-3 mr-2" size={18} />
+                    <div className="flex-1 flex items-center pl-3">
+                      <Search className="text-slate-400 shrink-0 mr-2" size={18} />
                       <input
                         type="text"
-                        placeholder={t(
-                          "Nhập MST để tìm nhanh hoặc thả ảnh vào để AI tự điền",
+                        placeholder={aiScanning ? t("AI Đang phân tích ảnh...", "AI is scanning image...") : t(
+                          "Nhập MST tìm nhanh, thả ảnh để AI đọc...",
                           "Enter tax code or drop image to let AI fill out...",
                         )}
                         value={searchQuery}
                         onChange={(e) => handleHeroSearchChange(e.target.value)}
-                        className="w-full text-sm py-2.5 bg-transparent focus:outline-none placeholder-slate-400 font-semibold cursor-text min-w-0"
+                        className="w-full text-sm py-2.5 px-3 bg-transparent focus:outline-none placeholder-slate-400 font-semibold cursor-text min-w-0"
                       />
-                      <div className="flex items-center gap-1 shrink-0">
-                        {smartSearchLoading && (
-                          <span className="w-4 h-4 border-2 border-indigo-200 border-t-indigo-650 rounded-full animate-spin block mr-1"></span>
-                        )}
-                        <input
-                          type="file"
-                          accept="image/*"
-                          id="ai-scan-upload"
-                          className="hidden"
-                          onChange={handleFileSelectScan}
-                          disabled={aiScanning}
-                        />
-                        <label
-                          htmlFor="ai-scan-upload"
-                          className={`flex items-center justify-center p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-indigo-600 transition-colors ${aiScanning ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-                          title="Tải ảnh lên để AI quét MST"
-                        >
-                          <Scan size={18} className={aiScanning ? "animate-pulse text-indigo-600" : ""} />
-                        </label>
-                      </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-1 shrink-0 pr-1">
+                      {smartSearchLoading && (
+                        <span className="w-4 h-4 border-2 border-indigo-200 border-t-indigo-650 rounded-full animate-spin block"></span>
+                      )}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        id="ai-scan-upload"
+                        className="hidden"
+                        onChange={handleFileSelectScan}
+                        disabled={aiScanning}
+                      />
+                      <label
+                        htmlFor="ai-scan-upload"
+                        className={`flex items-center justify-center p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-indigo-600 transition-colors ${aiScanning ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                        title="Tải ảnh lên để AI quét MST"
+                      >
+                        <Scan size={18} className={aiScanning ? "animate-pulse text-indigo-600" : ""} />
+                      </label>
                     </div>
                   </div>
 
@@ -2759,19 +2760,19 @@ export default function App() {
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <div className="md:col-span-1 bg-slate-50/50 p-4 rounded-xl border border-slate-200 flex flex-col justify-center items-center gap-2">
-                      <label className="relative flex items-center cursor-pointer select-none">
-                        <input
-                          type="checkbox"
-                          checked={regIsPublic}
-                          onChange={(e) => setRegIsPublic(e.target.checked)}
-                          className="peer absolute opacity-0 w-0 h-0"
-                        />
-                        <div className="w-10 h-5 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-100 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
-                      </label>
-                      <span className="text-[10px] font-bold text-slate-700 uppercase tracking-wider text-center">
-                        {regIsPublic ? t("Công Khai", "Public") : t("Không Công Khai", "Private")}
-                      </span>
+                    <div className="md:col-span-1 bg-slate-50/50 p-4 rounded-xl border border-slate-200 flex justify-center items-center">
+                      <div className="flex flex-col items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setRegIsPublic(!regIsPublic)}
+                          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${regIsPublic ? 'bg-indigo-600' : 'bg-slate-300'}`}
+                        >
+                          <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${regIsPublic ? 'translate-x-6' : 'translate-x-1'}`} />
+                        </button>
+                        <span className="text-[10px] sm:text-[11px] font-bold text-slate-700 uppercase tracking-wider whitespace-nowrap">
+                          {regIsPublic ? t("Công Khai", "Public") : t("Riêng tư", "Private")}
+                        </span>
+                      </div>
                     </div>
 
                     {/* Captcha Verify */}
@@ -4373,16 +4374,14 @@ Email nhận hóa đơn: ${activeCompany.email || ""}${activeCompany.bankAccount
                           </div>
 
                           <div className="pt-4 border-t border-slate-200 flex items-center justify-between">
-                            <label className="text-[10px] font-bold text-slate-700 uppercase tracking-wider">{editIsPublic ? t("Công Khai", "Public") : t("Không Công Khai", "Private")}</label>
-                            <label className="relative flex items-center cursor-pointer select-none">
-                              <input
-                                type="checkbox"
-                                checked={editIsPublic}
-                                onChange={(e) => setEditIsPublic(e.target.checked)}
-                                className="peer absolute opacity-0 w-0 h-0"
-                              />
-                              <div className="w-10 h-5 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-100 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
-                            </label>
+                            <span className="text-[10px] font-bold text-slate-700 uppercase tracking-wider">{editIsPublic ? t("Công Khai", "Public") : t("Riêng tư", "Private")}</span>
+                            <button
+                              type="button"
+                              onClick={() => setEditIsPublic(!editIsPublic)}
+                              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${editIsPublic ? 'bg-indigo-600' : 'bg-slate-300'}`}
+                            >
+                              <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${editIsPublic ? 'translate-x-6' : 'translate-x-1'}`} />
+                            </button>
                           </div>
                         </div>
 

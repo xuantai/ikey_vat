@@ -627,12 +627,24 @@ app.post("/api/scan-image", async (req, res) => {
     const { imageBase64 } = req.body;
     if (!imageBase64) return res.status(400).json({ error: "Missing image data" });
 
-    if (!process.env.GEMINI_API_KEY) {
+    // Try to get API key from Firestore settings or fallback to process.env
+    let apiKey = process.env.GEMINI_API_KEY;
+    try {
+      const settingsRef = doc(db, "settings", "global");
+      const settingsSnap = await getDoc(settingsRef);
+      if (settingsSnap.exists() && settingsSnap.data().geminiApiKey) {
+        apiKey = settingsSnap.data().geminiApiKey;
+      }
+    } catch (e) {
+      console.error("Failed to read settings for Gemini API Key", e);
+    }
+
+    if (!apiKey) {
       return res.status(500).json({ success: false, message: "Hệ thống chưa thiết lập API Key của Gemini. Vui lòng liên hệ quản trị viên." });
     }
 
     const ai = new GoogleGenAI({
-      apiKey: process.env.GEMINI_API_KEY,
+      apiKey: apiKey,
       httpOptions: { headers: { "User-Agent": "aistudio-build" } }
     });
 
