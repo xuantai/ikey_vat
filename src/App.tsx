@@ -1,45 +1,44 @@
 import React, { useState, useEffect, useRef } from "react";
-import { 
-  Building2, 
-  Hash, 
-  MapPin, 
-  Mail, 
-  Phone, 
-  Copy, 
-  Check, 
-  QrCode, 
-  CreditCard, 
-  User, 
-  ExternalLink, 
-  Plus, 
-  Edit, 
-  Palette, 
-  Trash2, 
-  HelpCircle, 
-  Search, 
-  Settings, 
-  ArrowLeft, 
-  Sparkles, 
-  Download, 
-  Key, 
-  Eye, 
-  EyeOff, 
+import {
+  Building2,
+  Hash,
+  MapPin,
+  Mail,
+  Phone,
+  Copy,
+  Check,
+  QrCode,
+  CreditCard,
+  User,
+  ExternalLink,
+  Plus,
+  Edit,
+  Palette,
+  Trash2,
+  HelpCircle,
+  Search,
+  Settings,
+  ArrowLeft,
+  Sparkles,
+  Download,
+  Key,
+  Eye,
+  EyeOff,
   Lock,
   ChevronRight,
   Globe,
   Heart,
   RotateCcw,
-  Image as ImageIcon
+  Image as ImageIcon,
 } from "lucide-react";
 import { CompanyInfo, BankConfig, ApiResponse } from "./types";
 import { VIETNAMESE_BANKS, PRESET_COLORS, SAMPLE_COMPANY } from "./data";
 import { toPng, toJpeg } from "html-to-image";
 
-
 const proxyImageUrl = (url) => {
   if (!url) return url;
-  if (url.startsWith('https://img.vietqr.io')) return url; // Already fully CORS compliant
-  if (url.startsWith('data:')) return url;
+  if (url.startsWith("https://img.vietqr.io")) return url; // Already fully CORS compliant
+  if (url.startsWith("data:")) return url;
   return `/api/proxy-image?url=${encodeURIComponent(url)}`;
 };
 
@@ -58,7 +57,7 @@ export const BANK_BINS: Record<string, string> = {
   hdb: "970437",
   msb: "970426",
   shb: "970443",
-  shn: "970424"
+  shn: "970424",
 };
 
 export function removeVietnameseTones(str: string): string {
@@ -71,7 +70,7 @@ export function removeVietnameseTones(str: string): string {
   result = result.replace(/ù|ú|ụ|ủ|ũ|ư|ừ|ứ|ự|ử|ữ/g, "u");
   result = result.replace(/ỳ|ý|ỵ|ỷ|ỹ/g, "y");
   result = result.replace(/đ/g, "d");
-  
+
   result = result.replace(/À|Á|Ạ|Ả|Ã|Â|Ầ|Ấ|Ậ|Ẩ|Ẫ|Ă|Ằ|Ắ|Ặ|Ẳ|Ẵ/g, "A");
   result = result.replace(/È|É|Ẹ|Ẻ|Ẽ|Ê|Ề|Ế|Ệ|Ể|Ễ/g, "E");
   result = result.replace(/Ì|Í|Ị|Ỉ|Ĩ/g, "I");
@@ -79,33 +78,38 @@ export function removeVietnameseTones(str: string): string {
   result = result.replace(/Ù|Ú|Ụ|Ủ|Ũ|Ư|Ừ|Ứ|Ự|Ử|Ữ/g, "U");
   result = result.replace(/Ý|Ỳ|Ỵ|Ỷ|Ỹ/g, "Y");
   result = result.replace(/Đ/g, "D");
-  
+
   // Clean up remaining diacritics
   try {
     result = result.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
   } catch (e) {
     // fallback if normalize isn't supported in old runtimes
   }
-  
+
   // Keep only standard characters, spaces, and numbers
   result = result.replace(/[^a-zA-Z0-9 ]/g, " ");
   result = result.replace(/\s+/g, " ");
-  
+
   return result.trim().toUpperCase();
 }
 
 export default function App() {
   // Global States
-  const [route, setRoute] = useState<"home" | "view" | "admin" | "globalAdmin">("home");
-  const [globalBaseUrl, setGlobalBaseUrl] = useState<string>(() => localStorage.getItem("globalBaseUrl") || window.location.origin);
+  const [route, setRoute] = useState<"home" | "view" | "admin" | "globalAdmin">(
+    "home",
+  );
+  const [globalBaseUrl, setGlobalBaseUrl] = useState<string>(
+    () => localStorage.getItem("globalBaseUrl") || window.location.origin,
+  );
   const [currentUsername, setCurrentUsername] = useState<string>("");
   const [activeCompany, setActiveCompany] = useState<CompanyInfo | null>(null);
   const [registeredCompanies, setRegisteredCompanies] = useState<any[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
-  const [isInitialRouteLoading, setIsInitialRouteLoading] = useState<boolean>(true);
+  const [isInitialRouteLoading, setIsInitialRouteLoading] =
+    useState<boolean>(true);
   const [isCapturing, setIsCapturing] = useState<boolean>(false);
   const [capturedImageUrl, setCapturedImageUrl] = useState<string | null>(null);
-  
+
   // System Customizer States
   const [siteTitle, setSiteTitle] = useState<string>("");
   const [globalSeoTitle, setGlobalSeoTitle] = useState<string>("");
@@ -117,7 +121,9 @@ export default function App() {
   const [footerText, setFooterText] = useState<string>("");
   const [headerLink, setHeaderLink] = useState<string>("");
   const [footerLink, setFooterLink] = useState<string>("");
-  const [footerSecondaryLinks, setFooterSecondaryLinks] = useState<{ text: string; url: string }[]>([]);
+  const [footerSecondaryLinks, setFooterSecondaryLinks] = useState<
+    { text: string; url: string }[]
+  >([]);
   const [deletingUsername, setDeletingUsername] = useState<string | null>(null);
   const [adminUsername, setAdminUsername] = useState<string>("");
   const [adminPasswordInput, setAdminPasswordInput] = useState<string>("");
@@ -140,19 +146,23 @@ export default function App() {
       return "";
     }
   });
-  
+
   // Interaction & UI States
-  const [toast, setToast] = useState<{ message: string; visible: boolean; type: "success" | "error" | "info" }>({
+  const [toast, setToast] = useState<{
+    message: string;
+    visible: boolean;
+    type: "success" | "error" | "info";
+  }>({
     message: "",
     visible: false,
-    type: "success"
+    type: "success",
   });
   const [copiedField, setCopiedField] = useState<string | null>(null);
-  
+
   // VietQR amount & remarks interaction in public profiles
   const [paymentAmount, setPaymentAmount] = useState<string>("");
   const [paymentRemarks, setPaymentRemarks] = useState<string>("");
-  
+
   // Registration Form States
   const [regUsername, setRegUsername] = useState<string>("");
   const [regCompanyName, setRegCompanyName] = useState<string>("");
@@ -168,7 +178,9 @@ export default function App() {
   const [regAdminPassword, setRegAdminPassword] = useState<string>("");
   const [showRegPassword, setShowRegPassword] = useState<boolean>(false);
   const [regError, setRegError] = useState<string | null>(null);
-  const [usernameStatus, setUsernameStatus] = useState<"idle" | "checking" | "available" | "taken">("idle");
+  const [usernameStatus, setUsernameStatus] = useState<
+    "idle" | "checking" | "available" | "taken"
+  >("idle");
 
   // Temp states for continuous typing input values (updating actual ones onBlur/focus out)
   const [tempUsername, setTempUsername] = useState<string>("");
@@ -185,8 +197,10 @@ export default function App() {
   const [adminUsernameInput, setAdminUsernameInput] = useState<string>("");
   const [isLoggedAdmin, setIsLoggedAdmin] = useState<boolean>(false);
   const [loginError, setLoginError] = useState<string | null>(null);
-  const [adminCPTab, setAdminCPTab] = useState<"info" | "banks" | "theme" | "danger">("info");
-  
+  const [adminCPTab, setAdminCPTab] = useState<
+    "info" | "banks" | "theme" | "danger"
+  >("info");
+
   // Admin Editing Payload
   const [editCompanyName, setEditCompanyName] = useState<string>("");
   const [editTaxCode, setEditTaxCode] = useState<string>("");
@@ -206,9 +220,12 @@ export default function App() {
 
   // Bank display options
   const [showQRInputs, setShowQRInputs] = useState<boolean>(false);
-  
+
   // Captcha State
-  const [captchaQ, setCaptchaQ] = useState({ a: Math.floor(Math.random() * 10) + 1, b: Math.floor(Math.random() * 10) + 1 });
+  const [captchaQ, setCaptchaQ] = useState({
+    a: Math.floor(Math.random() * 10) + 1,
+    b: Math.floor(Math.random() * 10) + 1,
+  });
   const [captchaA, setCaptchaA] = useState<string>("");
   const [showEditQR, setShowEditQR] = useState<boolean>(false);
   const [lookupLoading, setLookupLoading] = useState<boolean>(false);
@@ -219,12 +236,13 @@ export default function App() {
   const [smartSuggestions, setSmartSuggestions] = useState<any[]>([]);
   const [smartSearchLoading, setSmartSearchLoading] = useState<boolean>(false);
   const [syncWithCompany, setSyncWithCompany] = useState<boolean>(false);
-  const [editSyncWithCompany, setEditSyncWithCompany] = useState<boolean>(false);
+  const [editSyncWithCompany, setEditSyncWithCompany] =
+    useState<boolean>(false);
 
   // Search/Filter in Home
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [qrModalOpen, setQrModalOpen] = useState<boolean>(false);
-  
+
   // Translation, Support developer modal, and inline delete confirmation states
   const [lang, setLang] = useState<"vi" | "en">("vi");
   const [supportModalOpen, setSupportModalOpen] = useState<boolean>(false);
@@ -235,7 +253,7 @@ export default function App() {
   const t = (viText: string, enText: string) => {
     return lang === "vi" ? viText : enText;
   };
-  
+
   const appDomain = (() => {
     let domain = "ikey.vn";
     let host = "";
@@ -243,19 +261,23 @@ export default function App() {
       try {
         host = new URL(globalBaseUrl).hostname;
       } catch {
-        host = globalBaseUrl.replace(/^https?:\/\//, '').split('/')[0];
+        host = globalBaseUrl.replace(/^https?:\/\//, "").split("/")[0];
       }
     } else {
       host = window.location.hostname;
     }
-    
+
     // remove www.
-    host = host.replace(/^www\./, '');
-    
-    if (!host.includes("localhost") && !host.includes("ngrok") && !host.includes("run.app")) {
-      const parts = host.split('.');
+    host = host.replace(/^www\./, "");
+
+    if (
+      !host.includes("localhost") &&
+      !host.includes("ngrok") &&
+      !host.includes("run.app")
+    ) {
+      const parts = host.split(".");
       if (parts.length > 2) {
-        domain = parts.slice(-2).join('.');
+        domain = parts.slice(-2).join(".");
       } else {
         domain = host;
       }
@@ -280,7 +302,7 @@ export default function App() {
     initialize();
     fetchRegisteredCompanies();
     fetchSystemSettings();
-    
+
     // Listen for back/forward browser buttons
     const handlePopState = async () => {
       setIsInitialRouteLoading(true);
@@ -304,10 +326,13 @@ export default function App() {
       document.title = companyTitle;
 
       // 2. Favicon: defaults to company's logoUrl!
-      const companyFavicon = activeCompany.logoUrl || globalFaviconUrl || siteLogo;
+      const companyFavicon =
+        activeCompany.logoUrl || globalFaviconUrl || siteLogo;
       if (companyFavicon) {
         try {
-          let faviconLink = document.querySelector("link[rel*='icon']") as HTMLLinkElement;
+          let faviconLink = document.querySelector(
+            "link[rel*='icon']",
+          ) as HTMLLinkElement;
           if (!faviconLink) {
             faviconLink = document.createElement("link");
             faviconLink.type = "image/x-icon";
@@ -323,10 +348,13 @@ export default function App() {
       // 3. Thumbnail: defaults to a page screenshot preview
       const currentUrl = `${window.location.origin}/${activeCompany.username}`;
       const screenshotUrl = `https://api.microlink.io?url=${encodeURIComponent(currentUrl)}&screenshot=true&embed=screenshot.url`;
-      const companyThumbnail = activeCompany.logoUrl || globalThumbnailUrl || screenshotUrl;
-      
+      const companyThumbnail =
+        activeCompany.logoUrl || globalThumbnailUrl || screenshotUrl;
+
       try {
-        let ogImage = document.querySelector("meta[property='og:image']") as HTMLMetaElement;
+        let ogImage = document.querySelector(
+          "meta[property='og:image']",
+        ) as HTMLMetaElement;
         if (!ogImage) {
           ogImage = document.createElement("meta");
           ogImage.setAttribute("property", "og:image");
@@ -334,7 +362,9 @@ export default function App() {
         }
         ogImage.content = companyThumbnail;
 
-        let twitterImage = document.querySelector("meta[name='twitter:image']") as HTMLMetaElement;
+        let twitterImage = document.querySelector(
+          "meta[name='twitter:image']",
+        ) as HTMLMetaElement;
         if (!twitterImage) {
           twitterImage = document.createElement("meta");
           twitterImage.setAttribute("name", "twitter:image");
@@ -342,16 +372,18 @@ export default function App() {
         }
         twitterImage.content = companyThumbnail;
       } catch (e) {}
-
     } else {
       // Homepage or other routes
-      const defaultTitle = globalSeoTitle || "Tạo trang thông tin xuất hóa đơn VAT";
+      const defaultTitle =
+        globalSeoTitle || "Tạo trang thông tin xuất hóa đơn VAT";
       document.title = defaultTitle;
 
       const defaultFavicon = globalFaviconUrl || siteLogo;
       if (defaultFavicon) {
         try {
-          let faviconLink = document.querySelector("link[rel*='icon']") as HTMLLinkElement;
+          let faviconLink = document.querySelector(
+            "link[rel*='icon']",
+          ) as HTMLLinkElement;
           if (!faviconLink) {
             faviconLink = document.createElement("link");
             faviconLink.rel = "shortcut icon";
@@ -365,10 +397,12 @@ export default function App() {
       const currentUrl = window.location.origin;
       const screenshotUrl = `https://api.microlink.io?url=${encodeURIComponent(currentUrl)}&screenshot=true&embed=screenshot.url`;
       const defaultThumbnail = globalThumbnailUrl || screenshotUrl || siteLogo;
-      
+
       if (defaultThumbnail) {
         try {
-          let ogImage = document.querySelector("meta[property='og:image']") as HTMLMetaElement;
+          let ogImage = document.querySelector(
+            "meta[property='og:image']",
+          ) as HTMLMetaElement;
           if (!ogImage) {
             ogImage = document.createElement("meta");
             ogImage.setAttribute("property", "og:image");
@@ -376,7 +410,9 @@ export default function App() {
           }
           ogImage.content = defaultThumbnail;
 
-          let twitterImage = document.querySelector("meta[name='twitter:image']") as HTMLMetaElement;
+          let twitterImage = document.querySelector(
+            "meta[name='twitter:image']",
+          ) as HTMLMetaElement;
           if (!twitterImage) {
             twitterImage = document.createElement("meta");
             twitterImage.setAttribute("name", "twitter:image");
@@ -386,12 +422,21 @@ export default function App() {
         } catch (e) {}
       }
     }
-  }, [route, activeCompany, globalSeoTitle, siteTitle, siteLogo, globalFaviconUrl, globalThumbnailUrl]);
+  }, [
+    route,
+    activeCompany,
+    globalSeoTitle,
+    siteTitle,
+    siteLogo,
+    globalFaviconUrl,
+    globalThumbnailUrl,
+  ]);
 
   // Synchronize Bank Account Owner in Registration Form if checked
   useEffect(() => {
     if (syncWithCompany && tempCompanyName) {
-      const unsignedOwner = removeVietnameseTones(tempCompanyName).toUpperCase();
+      const unsignedOwner =
+        removeVietnameseTones(tempCompanyName).toUpperCase();
       setTempBankOwner(unsignedOwner);
       setRegBankOwner(unsignedOwner);
     }
@@ -400,7 +445,8 @@ export default function App() {
   // Synchronize Bank Account Owner in Admin Edit Form if checked
   useEffect(() => {
     if (editSyncWithCompany && editCompanyName) {
-      const unsignedOwner = removeVietnameseTones(editCompanyName).toUpperCase();
+      const unsignedOwner =
+        removeVietnameseTones(editCompanyName).toUpperCase();
       setEditBankOwner(unsignedOwner);
     }
   }, [editSyncWithCompany, editCompanyName]);
@@ -419,12 +465,22 @@ export default function App() {
     const hostname = window.location.hostname;
     // We can fetch all companies and match
     try {
-      if (hostname !== "localhost" && !hostname.includes("ngrok") && !hostname.includes("run.app") && !hostname.includes("ikey.vn")) {
+      if (
+        hostname !== "localhost" &&
+        !hostname.includes("ngrok") &&
+        !hostname.includes("run.app") &&
+        !hostname.includes("ikey.vn")
+      ) {
         const res = await fetch("/api/companies");
         if (res.ok) {
           const json = await res.json();
           if (json.success && json.data) {
-            const domainMatched = json.data.find((c: any) => c.customDomain === hostname || c.customDomain === `www.${hostname}` || `www.${c.customDomain}` === hostname);
+            const domainMatched = json.data.find(
+              (c: any) =>
+                c.customDomain === hostname ||
+                c.customDomain === `www.${hostname}` ||
+                `www.${c.customDomain}` === hostname,
+            );
             if (domainMatched) {
               // Custom domain matched! Render this company directly.
               await loadCompanyProfile(domainMatched.username, "view");
@@ -433,12 +489,12 @@ export default function App() {
           }
         }
       }
-    } catch(e) {}
+    } catch (e) {}
 
     const path = window.location.pathname;
     const hash = window.location.hash;
     const searchParams = new URLSearchParams(window.location.search);
-    
+
     // Check parameters first
     const qSlug = searchParams.get("slug") || searchParams.get("c");
     if (qSlug) {
@@ -461,7 +517,7 @@ export default function App() {
     // Check pathname slugs directly (excluding system keywords)
     if (path && path !== "/") {
       const cleanPath = path.substring(1).replace(/\/$/, ""); // remove starting slash and trailing
-      
+
       if (cleanPath === "admin") {
         setRoute("globalAdmin");
         setLoading(false);
@@ -469,10 +525,15 @@ export default function App() {
       }
 
       const pathParts = cleanPath.split("/");
-      
+
       if (pathParts.length > 0) {
         const slug = pathParts[0];
-        if (slug !== "api" && slug !== "assets" && slug !== "admin" && slug !== "home") {
+        if (
+          slug !== "api" &&
+          slug !== "assets" &&
+          slug !== "admin" &&
+          slug !== "home"
+        ) {
           if (pathParts[1] === "admin") {
             await loadCompanyProfile(slug, "admin");
           } else {
@@ -491,14 +552,21 @@ export default function App() {
     setLoading(false);
   };
 
-  const showToast = (message: string, type: "success" | "error" | "info" = "success") => {
+  const showToast = (
+    message: string,
+    type: "success" | "error" | "info" = "success",
+  ) => {
     setToast({ message, visible: true, type });
     setTimeout(() => {
       setToast((prev) => ({ ...prev, visible: false }));
     }, 4500);
   };
 
-  const handleBankLookup = async (bankId: string, accNum: string, isEdit: boolean = false) => {
+  const handleBankLookup = async (
+    bankId: string,
+    accNum: string,
+    isEdit: boolean = false,
+  ) => {
     if (!bankId || !accNum) return;
     const bin = BANK_BINS[bankId];
     if (!bin) return;
@@ -508,7 +576,7 @@ export default function App() {
       const res = await fetch("/api/lookup-bank-account", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ bin, accountNumber: accNum })
+        body: JSON.stringify({ bin, accountNumber: accNum }),
       });
       const data = await res.json();
       if (data.success && data.accountName) {
@@ -521,7 +589,10 @@ export default function App() {
         }
       } else {
         // Log error silently, no aggressive alert as this is a premium lookup API requiring configured keys
-        console.log("Bank lookup failed (VIETQR Keys may not be configured):", data.message);
+        console.log(
+          "Bank lookup failed (VIETQR Keys may not be configured):",
+          data.message,
+        );
       }
     } catch (err) {
       console.error("Bank account lookup error:", err);
@@ -532,7 +603,7 @@ export default function App() {
 
   const copyToClipboard = (text: string, fieldName: string) => {
     if (!text) return;
-    
+
     // Custom robust copy handler with textarea fallback
     let success = false;
     if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -562,7 +633,10 @@ export default function App() {
       showToast(`Đã sao chép: ${fieldName}`, "success");
       setTimeout(() => setCopiedField(null), 1200);
     } else {
-      showToast("Không thể tự động sao chép. Hãy chọn văn bản và sao chép thủ công.", "error");
+      showToast(
+        "Không thể tự động sao chép. Hãy chọn văn bản và sao chép thủ công.",
+        "error",
+      );
     }
   };
 
@@ -578,14 +652,13 @@ export default function App() {
     try {
       // 1. Enter capture mode to force solid, non-transparent rendering of all info elements
       setIsCapturing(true);
-      
+
       // Let the react state update and rendering settle completely
       await new Promise((resolve) => setTimeout(resolve, 500));
 
       const captureHeight = node.offsetHeight;
       const captureWidth = node.offsetWidth;
       const captureOptions = {
-        cacheBust: true,
         width: 390,
         height: captureHeight,
         style: {
@@ -594,40 +667,43 @@ export default function App() {
           width: "390px",
           margin: "0",
         },
+        cacheBust: true,
         quality: 1, // Max quality for JPEG
         pixelRatio: 2.5, // Crisp 2.5x high-res display
       };
 
       // Workaround for iOS/Safari where images might not load properly on the first capture
       await toJpeg(node, captureOptions).catch(() => {});
-      
+
       const dataUrl = await toJpeg(node, captureOptions);
 
-      const filename = activeCompany 
-        ? `thong-tin-nhan-hoa-don-${activeCompany.username}.jpg` 
+      const filename = activeCompany
+        ? `thong-tin-nhan-hoa-don-${activeCompany.username}.jpg`
         : "thong-tin-nhan-hoa-don.jpg";
 
-      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
-      
+      const isIOS =
+        /iPad|iPhone|iPod/.test(navigator.userAgent) &&
+        !(window as any).MSStream;
+
       if (isIOS) {
         // Option 1: Native Share Sheet (Save to Photos natively)
         try {
           const res = await fetch(dataUrl);
           const blob = await res.blob();
-          const file = new File([blob], filename, { type: 'image/jpeg' });
+          const file = new File([blob], filename, { type: "image/jpeg" });
           if (navigator.canShare && navigator.canShare({ files: [file] })) {
-             await navigator.share({
-               files: [file],
-               title: 'Thông tin hóa đơn',
-             });
-             setIsCapturing(false);
-             showToast("Đã lưu ảnh thành công!", "success");
-             return;
+            await navigator.share({
+              files: [file],
+              title: "Thông tin hóa đơn",
+            });
+            setIsCapturing(false);
+            showToast("Đã lưu ảnh thành công!", "success");
+            return;
           }
         } catch (e) {
           console.error("Web Share failed:", e);
         }
-        
+
         // Option 2: Fallback to Blob Open in New Tab
         try {
           const res = await fetch(dataUrl);
@@ -635,9 +711,9 @@ export default function App() {
           const blobUrl = URL.createObjectURL(blob);
           const newWindow = window.open(blobUrl, "_blank");
           if (newWindow) {
-             showToast("Đã mở ảnh. Bạn có thể lưu ảnh từ tab này!", "success");
+            showToast("Đã mở ảnh. Bạn có thể lưu ảnh từ tab này!", "success");
           } else {
-             throw new Error("Popup blocked");
+            throw new Error("Popup blocked");
           }
         } catch (err) {
           const link = document.createElement("a");
@@ -729,18 +805,34 @@ export default function App() {
           footerLink,
           footerSecondaryLinks,
           globalFaviconUrl,
-          globalThumbnailUrl
-        })
+          globalThumbnailUrl,
+        }),
       });
       const json = await res.json();
       if (json.success) {
-        showToast(t("Đã lưu cấu hình hệ thống thành công!", "System configuration saved successfully!"), "success");
+        showToast(
+          t(
+            "Đã lưu cấu hình hệ thống thành công!",
+            "System configuration saved successfully!",
+          ),
+          "success",
+        );
       } else {
-        showToast(json.message || t("Không lưu được cấu hình.", "Failed to save configuration."), "error");
+        showToast(
+          json.message ||
+            t("Không lưu được cấu hình.", "Failed to save configuration."),
+          "error",
+        );
       }
     } catch (err) {
       console.error(err);
-      showToast(t("Lỗi kết nối máy chủ khi lưu cấu hình.", "Network error saving settings."), "error");
+      showToast(
+        t(
+          "Lỗi kết nối máy chủ khi lưu cấu hình.",
+          "Network error saving settings.",
+        ),
+        "error",
+      );
     }
   };
 
@@ -796,7 +888,9 @@ export default function App() {
   };
 
   // Upload global site favicon
-  const handleGlobalFaviconUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleGlobalFaviconUpload = (
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -827,7 +921,9 @@ export default function App() {
   };
 
   // Upload global site thumbnail
-  const handleGlobalThumbnailUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleGlobalThumbnailUpload = (
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -873,12 +969,15 @@ export default function App() {
   };
 
   // Retrieve company info
-  const loadCompanyProfile = async (username: string, targetTab: "view" | "admin" = "view") => {
+  const loadCompanyProfile = async (
+    username: string,
+    targetTab: "view" | "admin" = "view",
+  ) => {
     setLoading(true);
     try {
       const res = await fetch(`/api/companies/${username}`);
       const json = await res.json();
-      
+
       if (json.success) {
         const company: CompanyInfo = json.data;
         setActiveCompany(company);
@@ -888,7 +987,7 @@ export default function App() {
           setIsLoggedAdmin(true);
           setAdminPassword("123321");
         }
-        
+
         // Initialize Admin inputs
         setEditCompanyName(company.companyName);
         setEditTaxCode(company.taxCode);
@@ -947,7 +1046,10 @@ export default function App() {
   };
 
   const handleUsernameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value.toLowerCase().trim().replace(/[^a-z0-9_-]/g, "");
+    const val = e.target.value
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9_-]/g, "");
     setTempUsername(val);
   };
 
@@ -970,49 +1072,58 @@ export default function App() {
       // Primary: Server-side proxy (CORS safe, highly reliable)
       const res = await fetch(`/api/lookup-tax/${cleanMst}`);
       const json = await res.json();
-      
+
       if (json.code === "00" && json.data) {
         const titleCaseName = json.data.name || json.data.displayName || "";
         const formattedAddress = json.data.address || "";
-        
+
         setRegCompanyName(titleCaseName);
         setRegAddress(formattedAddress);
         setTempCompanyName(titleCaseName);
         setTempAddress(formattedAddress);
-        
+
         showToast("Tự động điền dữ liệu công ty thành công!", "success");
       } else {
         // Fallback: Direct Public client-side fetch
-        const directRes = await fetch(`https://api.vietqr.io/v2/business/${cleanMst}`);
+        const directRes = await fetch(
+          `https://api.vietqr.io/v2/business/${cleanMst}`,
+        );
         const directJson = await directRes.json();
         if (directJson.code === "00" && directJson.data) {
-          const titleCaseName = directJson.data.name || directJson.data.displayName || "";
+          const titleCaseName =
+            directJson.data.name || directJson.data.displayName || "";
           const formattedAddress = directJson.data.address || "";
-          
+
           setRegCompanyName(titleCaseName);
           setRegAddress(formattedAddress);
           setTempCompanyName(titleCaseName);
           setTempAddress(formattedAddress);
-          
+
           showToast("Tự động điền dữ liệu công ty thành công!", "success");
         } else {
-          showToast("Không tìm thấy thông tin tự động cho MST này. Hãy tự điền.", "info");
+          showToast(
+            "Không tìm thấy thông tin tự động cho MST này. Hãy tự điền.",
+            "info",
+          );
         }
       }
     } catch (e) {
       // Safe fallback direct public query
       try {
-        const directRes = await fetch(`https://api.vietqr.io/v2/business/${cleanMst}`);
+        const directRes = await fetch(
+          `https://api.vietqr.io/v2/business/${cleanMst}`,
+        );
         const directJson = await directRes.json();
         if (directJson.code === "00" && directJson.data) {
-          const titleCaseName = directJson.data.name || directJson.data.displayName || "";
+          const titleCaseName =
+            directJson.data.name || directJson.data.displayName || "";
           const formattedAddress = directJson.data.address || "";
-          
+
           setRegCompanyName(titleCaseName);
           setRegAddress(formattedAddress);
           setTempCompanyName(titleCaseName);
           setTempAddress(formattedAddress);
-          
+
           showToast("Tự động điền dữ liệu công ty thành công!", "success");
         } else {
           showToast("Không tìm thấy MST. Vui lòng tự nhập tay.", "info");
@@ -1027,9 +1138,9 @@ export default function App() {
 
   // Trigger smart corporate autocomplete suggestions from name/tax code entering inside hero input with sequential execution & debouncer
   const handleHeroSearchChange = async (query: string) => {
-    const numericQuery = query.replace(/[^\d-]/g, '');
+    const numericQuery = query.replace(/[^\d-]/g, "");
     setSearchQuery(numericQuery);
-    
+
     // 1. Cancel previous pending searches
     if (searchTimeoutRef.current) {
       clearTimeout(searchTimeoutRef.current);
@@ -1052,9 +1163,12 @@ export default function App() {
       activeAbortControllerRef.current = controller;
 
       try {
-        const res = await fetch(`/api/search-company?q=${encodeURIComponent(numericQuery)}`, {
-          signal: controller.signal
-        });
+        const res = await fetch(
+          `/api/search-company?q=${encodeURIComponent(numericQuery)}`,
+          {
+            signal: controller.signal,
+          },
+        );
         const json = await res.json();
         if (json.success && json.data) {
           setSmartSuggestions(json.data);
@@ -1080,11 +1194,16 @@ export default function App() {
     navigateToSlug(username, "view");
   };
 
-  const selectCompanySuggestion = async (company: { taxCode: string; name: string; address?: string; phone?: string; }) => {
+  const selectCompanySuggestion = async (company: {
+    taxCode: string;
+    name: string;
+    address?: string;
+    phone?: string;
+  }) => {
     setSmartSuggestions([]);
     setSmartSearchQuery("");
     setSearchQuery("");
-    
+
     // Automatically fill initial info we have from suggestion
     setRegTaxCode(company.taxCode);
     setTempTaxCode(company.taxCode);
@@ -1095,12 +1214,12 @@ export default function App() {
       setRegAddress(company.address);
       setTempAddress(company.address);
     }
-    
+
     if (company.phone) {
       setRegPhone(company.phone);
       setTempPhone(company.phone);
     }
-    
+
     // Auto sync username based on trimmed and clean company name if username is empty or standard template
     if (!tempUsername) {
       const slug = removeVietnameseTones(company.name)
@@ -1121,7 +1240,10 @@ export default function App() {
     if (!company.address) {
       await lookupTaxCode(company.taxCode);
     } else {
-      showToast("Đã tự động điền thông tin công ty! Hãy thêm tài khoản ngân hàng để hoàn tất.", "success");
+      showToast(
+        "Đã tự động điền thông tin công ty! Hãy thêm tài khoản ngân hàng để hoàn tất.",
+        "success",
+      );
     }
   };
 
@@ -1136,68 +1258,72 @@ export default function App() {
           resolve("#4F46E5"); // default indigo
           return;
         }
-        
+
         // Draw to small size to average colors in blocks
         canvas.width = 16;
         canvas.height = 16;
         ctx.drawImage(img, 0, 0, 16, 16);
-        
+
         try {
           const imgData = ctx.getImageData(0, 0, 16, 16).data;
-          
+
           let colorBuckets: { [key: string]: number } = {};
           let maxCount = 0;
           let dominantHex = "#4F46E5"; // fallback
-          
+
           for (let i = 0; i < imgData.length; i += 4) {
             const r = imgData[i];
-            const g = imgData[i+1];
-            const b = imgData[i+2];
-            const a = imgData[i+3];
-            
+            const g = imgData[i + 1];
+            const b = imgData[i + 2];
+            const a = imgData[i + 3];
+
             // Skip transparent or very light/dark colors (backgrounds)
             if (a < 180) continue;
-            
+
             // If it's too close to pure white, skip
             if (r > 240 && g > 240 && b > 240) continue;
             // If too black/grey, skip unless it's the only choice
             if (r < 25 && g < 25 && b < 25) continue;
-            
+
             // Round color to group similar shades
             const step = 15;
             const rr = Math.round(r / step) * step;
             const gg = Math.round(g / step) * step;
             const bb = Math.round(b / step) * step;
-            
-            const hex = "#" + [rr, gg, bb].map(x => {
-              const hexStr = x.toString(16);
-              return hexStr.length === 1 ? "0" + hexStr : hexStr;
-            }).join("");
-            
+
+            const hex =
+              "#" +
+              [rr, gg, bb]
+                .map((x) => {
+                  const hexStr = x.toString(16);
+                  return hexStr.length === 1 ? "0" + hexStr : hexStr;
+                })
+                .join("");
+
             colorBuckets[hex] = (colorBuckets[hex] || 0) + 1;
             if (colorBuckets[hex] > maxCount) {
               maxCount = colorBuckets[hex];
               dominantHex = hex;
             }
           }
-          
+
           resolve(dominantHex);
         } catch (e) {
           resolve("#4F46E5");
         }
       };
-      
+
       img.onerror = () => {
         resolve("#4F46E5");
       };
-      
+
       img.src = base64Str;
     });
   };
 
   const isPhoneInvalid = (phone: string) => {
     if (!phone) return false;
-    const cleanPhone = phone.replace(/[\s\.\+]/g, '');
+    const cleanPhone = phone.replace(/[\s\.\+]/g, "");
     return !/^\d{0,13}$/.test(cleanPhone) || cleanPhone.length > 13;
   };
 
@@ -1206,7 +1332,10 @@ export default function App() {
     return !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   };
 
-  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>, type: "reg" | "edit") => {
+  const handleLogoUpload = (
+    e: React.ChangeEvent<HTMLInputElement>,
+    type: "reg" | "edit",
+  ) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -1309,8 +1438,13 @@ export default function App() {
 
     // Captcha Validate
     if (parseInt(captchaA) !== captchaQ.a + captchaQ.b) {
-      setRegError("Kết quả phép tính không đúng. Xác minh bạn không phải robot.");
-      setCaptchaQ({ a: Math.floor(Math.random() * 10) + 1, b: Math.floor(Math.random() * 10) + 1 });
+      setRegError(
+        "Kết quả phép tính không đúng. Xác minh bạn không phải robot.",
+      );
+      setCaptchaQ({
+        a: Math.floor(Math.random() * 10) + 1,
+        b: Math.floor(Math.random() * 10) + 1,
+      });
       setCaptchaA("");
       return;
     }
@@ -1328,7 +1462,10 @@ export default function App() {
     if (!finalCompanyName) return setRegError("Vui lòng nhập tên công ty");
     if (!finalTaxCode) return setRegError("Vui lòng nhập mã số thuế");
     if (!finalAddress) return setRegError("Vui lòng nhập địa chỉ xuất hóa đơn");
-    if (isPhoneInvalid(finalPhone)) return setRegError("Số điện thoại không hợp lệ (chỉ nhập số, tối đa 13 ký tự).");
+    if (isPhoneInvalid(finalPhone))
+      return setRegError(
+        "Số điện thoại không hợp lệ (chỉ nhập số, tối đa 13 ký tự).",
+      );
     if (isEmailInvalid(finalEmail)) return setRegError("Email không hợp lệ.");
     if (!regAdminPassword || regAdminPassword.length < 4) {
       return setRegError("Vui lòng nhập mật khẩu quản lý tối thiểu 4 ký tự");
@@ -1346,7 +1483,7 @@ export default function App() {
       bankAccount: showQRInputs ? finalBankAccount : "",
       bankOwner: showQRInputs ? finalBankOwner : "",
       primaryColor: regPrimaryColor,
-      adminPassword: regAdminPassword
+      adminPassword: regAdminPassword,
     };
 
     setLoading(true);
@@ -1354,7 +1491,7 @@ export default function App() {
       const res = await fetch("/api/companies", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
       });
       const json = await res.json();
 
@@ -1381,7 +1518,7 @@ export default function App() {
         setTempPhone("");
         setTempBankAccount("");
         setTempBankOwner("");
-        
+
         // Force refresh list and navigate directly to preview!
         fetchRegisteredCompanies();
         navigateToSlug(payload.username, "view");
@@ -1431,7 +1568,7 @@ export default function App() {
       const res = await fetch(`/api/companies/${targetUser}/verify`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password: adminPassword })
+        body: JSON.stringify({ password: adminPassword }),
       });
       const json = await res.json();
 
@@ -1441,7 +1578,9 @@ export default function App() {
         loadCompanyProfile(targetUser, "admin");
         showToast("Xác thực thành công!", "success");
       } else {
-        setLoginError(json.message || "Tên đăng nhập hoặc mật khẩu không khớp.");
+        setLoginError(
+          json.message || "Tên đăng nhập hoặc mật khẩu không khớp.",
+        );
       }
     } catch (err) {
       setLoginError("Không thể kết nối máy chủ xác thực.");
@@ -1454,7 +1593,10 @@ export default function App() {
     if (!activeCompany) return;
 
     if (isPhoneInvalid(editPhone)) {
-      showToast("Số điện thoại không hợp lệ (chỉ nhập số, tối đa 13 ký tự).", "error");
+      showToast(
+        "Số điện thoại không hợp lệ (chỉ nhập số, tối đa 13 ký tự).",
+        "error",
+      );
       return;
     }
     if (isEmailInvalid(editEmail)) {
@@ -1477,7 +1619,7 @@ export default function App() {
       faviconUrl: editFaviconUrl,
       thumbnailUrl: editThumbnailUrl,
       websiteTitle: editWebsiteTitle,
-      newAdminPassword: editNewPassword || undefined
+      newAdminPassword: editNewPassword || undefined,
     };
 
     setLoading(true);
@@ -1486,9 +1628,9 @@ export default function App() {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
-          "x-admin-password": adminPassword
+          "x-admin-password": adminPassword,
         },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
       });
       const json = await res.json();
 
@@ -1518,23 +1660,32 @@ export default function App() {
         method: "DELETE",
         headers: {
           "Content-Type": "application/json",
-          "x-admin-password": adminPassword
-        }
+          "x-admin-password": adminPassword,
+        },
       });
       const json = await res.json();
 
       if (json.success) {
         showToast(
-          t(`Đã xóa liên kết "${currentUsername}" thành công!`, `Successfully deleted company page "${currentUsername}"!`),
-          "success"
+          t(
+            `Đã xóa liên kết "${currentUsername}" thành công!`,
+            `Successfully deleted company page "${currentUsername}"!`,
+          ),
+          "success",
         );
         setShowDeleteConfirm(false);
         navigateToHome();
       } else {
-        showToast(json.message || t("Xóa không thành công.", "Deletion failed."), "error");
+        showToast(
+          json.message || t("Xóa không thành công.", "Deletion failed."),
+          "error",
+        );
       }
     } catch (err) {
-      showToast(t("Lỗi gửi lệnh xóa từ máy chủ.", "Failed to send delete request."), "error");
+      showToast(
+        t("Lỗi gửi lệnh xóa từ máy chủ.", "Failed to send delete request."),
+        "error",
+      );
     }
   };
 
@@ -1544,9 +1695,11 @@ export default function App() {
     const bankBin = BANK_BINS[activeCompany.bankName] || activeCompany.bankName;
     const account = activeCompany.bankAccount;
     const owner = activeCompany.bankOwner;
-    
+
     // Default dynamic amount to 0 (omit from query string if it is 0 or empty to prevent image showing "Số tiền: 0đ")
-    const rawAmount = paymentAmount ? parseInt(paymentAmount.replace(/\D/g, "")) : 0;
+    const rawAmount = paymentAmount
+      ? parseInt(paymentAmount.replace(/\D/g, ""))
+      : 0;
     const amountParam = rawAmount > 0 ? `&amount=${rawAmount}` : "";
     const memoStr = paymentRemarks || `Nhan hoa don ${activeCompany.username}`;
 
@@ -1555,11 +1708,11 @@ export default function App() {
 
   // Get active bank details
   const getBankDetail = (id: string): BankConfig | undefined => {
-    return VIETNAMESE_BANKS.find(b => b.id === id);
+    return VIETNAMESE_BANKS.find((b) => b.id === id);
   };
 
   // Search filtering logic on Home Page
-  const filteredCompanies = registeredCompanies.filter(c => {
+  const filteredCompanies = registeredCompanies.filter((c) => {
     const q = (searchQuery || "").toLowerCase();
     const u = (c.username || "").toLowerCase();
     const tc = (c.taxCode || "").toLowerCase();
@@ -1575,23 +1728,24 @@ export default function App() {
               <Building2 size={32} className="stroke-[2.2] animate-pulse" />
               <div className="absolute inset-x-0 bottom-0 top-0 rounded-2xl border-2 border-indigo-200/45 animate-ping opacity-60"></div>
             </div>
-            
+
             <div className="space-y-1.5">
               <h3 className="text-sm font-black text-slate-800 tracking-wider uppercase font-sans">
                 Đang tải hệ thống
               </h3>
               <p className="text-[11px] text-slate-450 font-medium leading-relaxed font-sans">
-                Vui lòng chờ trong giây lát. Hệ thống đang đồng bộ và tải thông tin hóa đơn doanh nghiệp...
+                Vui lòng chờ trong giây lát. Hệ thống đang đồng bộ và tải thông
+                tin hóa đơn doanh nghiệp...
               </p>
             </div>
-            
+
             <div className="flex gap-1.5 justify-center items-center h-4">
               <span className="w-2 h-2 rounded-full bg-indigo-600 animate-bounce [animation-delay:-0.3s]"></span>
               <span className="w-2 h-2 rounded-full bg-indigo-600 animate-bounce [animation-delay:-0.15s]"></span>
               <span className="w-2 h-2 rounded-full bg-indigo-600 animate-bounce"></span>
             </div>
           </div>
-          
+
           <div className="mt-6 text-[10px] text-slate-400 font-bold tracking-widest uppercase font-mono">
             {siteTitle || appDomain || "IKEY VAT"}
           </div>
@@ -1602,14 +1756,25 @@ export default function App() {
 
   return (
     <div className="min-h-screen flex flex-col font-sans transition-colors duration-200">
-      
       {/* Dynamic Toast Element */}
       {toast.visible && (
         <div className="fixed top-6 right-6 left-6 md:left-auto md:w-96 z-50 animate-bounce shadow-2xl p-4 rounded-xl border flex items-center gap-3 backdrop-blur-md bg-white/95 border-gray-100">
-          <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
-            toast.type === "success" ? "bg-emerald-100 text-emerald-600" : toast.type === "info" ? "bg-blue-100 text-blue-600" : "bg-red-100 text-red-600"
-          }`}>
-            {toast.type === "success" ? <Check size={18} /> : toast.type === "info" ? <Download size={18} /> : <span>✖</span>}
+          <div
+            className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
+              toast.type === "success"
+                ? "bg-emerald-100 text-emerald-600"
+                : toast.type === "info"
+                  ? "bg-blue-100 text-blue-600"
+                  : "bg-red-100 text-red-600"
+            }`}
+          >
+            {toast.type === "success" ? (
+              <Check size={18} />
+            ) : toast.type === "info" ? (
+              <Download size={18} />
+            ) : (
+              <span>✖</span>
+            )}
           </div>
           <p className="text-sm font-medium text-gray-800">{toast.message}</p>
         </div>
@@ -1617,123 +1782,178 @@ export default function App() {
 
       {/* HEADER BAR */}
       {route !== "view" && (
-      <header className="sticky top-0 z-40 bg-white border-b border-slate-200 px-4 md:px-6 py-4 shadow-sm">
-        <div className="max-w-7xl mx-auto flex items-center justify-between gap-2.5">
-          {headerLink ? (
-            <a 
-              href={headerLink} 
-              target="_blank" 
-              rel="noopener noreferrer" 
-              className="flex items-center gap-2.5 select-none group"
-            >
-              <div className="h-10 w-10 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center transition-all group-hover:scale-105 group-hover:bg-indigo-100 shadow-sm shrink-0 overflow-hidden border border-indigo-100/30">
-                {siteLogo ? (
-                  <img src={siteLogo} alt="Logo" className="max-w-full max-h-full object-contain" referrerPolicy="no-referrer"  crossOrigin="anonymous" />
-                ) : (
-                  <Building2 size={22} className="stroke-[2.5]" />
-                )}
-              </div>
-              <div className="min-w-0">
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  <span className="text-base font-black tracking-tight text-indigo-650 uppercase">
-                    {siteTitle || appDomain}
-                  </span>
-                  <span className="text-[9px] bg-indigo-50 text-indigo-700 border border-indigo-100 px-1 py-0.2 rounded font-black uppercase">PRO</span>
-                  <span className="text-[9px] bg-slate-50 text-slate-500 border border-slate-200 px-1 py-0.2 rounded font-mono hidden sm:inline">v1.3</span>
+        <header className="sticky top-0 z-40 bg-white border-b border-slate-200 px-4 md:px-6 py-4 shadow-sm">
+          <div className="max-w-7xl mx-auto flex items-center justify-between gap-2.5">
+            {headerLink ? (
+              <a
+                href={headerLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2.5 select-none group"
+              >
+                <div className="h-10 w-10 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center transition-all group-hover:scale-105 group-hover:bg-indigo-100 shadow-sm shrink-0 overflow-hidden border border-indigo-100/30">
+                  {siteLogo ? (
+                    <img
+                      src={siteLogo}
+                      alt="Logo"
+                      className="max-w-full max-h-full object-contain"
+                      referrerPolicy="no-referrer"
+                      crossOrigin="anonymous"
+                    />
+                  ) : (
+                    <Building2 size={22} className="stroke-[2.5]" />
+                  )}
                 </div>
-                <h1 className="text-[11px] md:text-xs text-slate-500 font-semibold tracking-tight truncate max-w-[150px] sm:max-w-none">
-                  {siteSubtitle || t("Giải pháp cho doanh nghiệp", "Solutions for businesses")}
-                </h1>
-              </div>
-            </a>
-          ) : (
-            <div className="flex items-center gap-2.5 cursor-pointer select-none group" onClick={navigateToHome}>
-              <div className="h-10 w-10 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center transition-all group-hover:scale-105 group-hover:bg-indigo-100 shadow-sm shrink-0 overflow-hidden border border-indigo-100/30">
-                {siteLogo ? (
-                  <img src={siteLogo} alt="Logo" className="max-w-full max-h-full object-contain" referrerPolicy="no-referrer"  crossOrigin="anonymous" />
-                ) : (
-                  <Building2 size={22} className="stroke-[2.5]" />
-                )}
-              </div>
-              <div className="min-w-0">
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  <span className="text-base font-black tracking-tight text-indigo-650 uppercase">
-                    {siteTitle || appDomain}
-                  </span>
-                  <span className="text-[9px] bg-indigo-50 text-indigo-700 border border-indigo-100 px-1 py-0.2 rounded font-black uppercase">PRO</span>
-                  <span className="text-[9px] bg-slate-50 text-slate-500 border border-slate-200 px-1 py-0.2 rounded font-mono hidden sm:inline">v1.3</span>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-base font-black tracking-tight text-indigo-650 uppercase">
+                      {siteTitle || appDomain}
+                    </span>
+                    <span className="text-[9px] bg-indigo-50 text-indigo-700 border border-indigo-100 px-1 py-0.2 rounded font-black uppercase">
+                      PRO
+                    </span>
+                    <span className="text-[9px] bg-slate-50 text-slate-500 border border-slate-200 px-1 py-0.2 rounded font-mono hidden sm:inline">
+                      v1.3
+                    </span>
+                  </div>
+                  <h1 className="text-[11px] md:text-xs text-slate-500 font-semibold tracking-tight truncate max-w-[150px] sm:max-w-none">
+                    {siteSubtitle ||
+                      t(
+                        "Giải pháp cho doanh nghiệp",
+                        "Solutions for businesses",
+                      )}
+                  </h1>
                 </div>
-                <h1 className="text-[11px] md:text-xs text-slate-500 font-semibold tracking-tight truncate max-w-[150px] sm:max-w-none">
-                  {siteSubtitle || t("Giải pháp cho doanh nghiệp", "Solutions for businesses")}
-                </h1>
-              </div>
-            </div>
-          )}
- 
-          <div className="flex items-center gap-2 shrink-0">
-            {/* SYSTEM ADMIN GEAR BUTTON - HIDDEN FOR SECURITY */}
-            {route === "globalAdmin" && (
-              <div className="p-2 rounded-lg border bg-indigo-50 text-indigo-700 border-indigo-200 shrink-0 shadow-sm">
-                <Settings size={16} className="animate-spin text-indigo-500" />
+              </a>
+            ) : (
+              <div
+                className="flex items-center gap-2.5 cursor-pointer select-none group"
+                onClick={navigateToHome}
+              >
+                <div className="h-10 w-10 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center transition-all group-hover:scale-105 group-hover:bg-indigo-100 shadow-sm shrink-0 overflow-hidden border border-indigo-100/30">
+                  {siteLogo ? (
+                    <img
+                      src={siteLogo}
+                      alt="Logo"
+                      className="max-w-full max-h-full object-contain"
+                      referrerPolicy="no-referrer"
+                      crossOrigin="anonymous"
+                    />
+                  ) : (
+                    <Building2 size={22} className="stroke-[2.5]" />
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-base font-black tracking-tight text-indigo-650 uppercase">
+                      {siteTitle || appDomain}
+                    </span>
+                    <span className="text-[9px] bg-indigo-50 text-indigo-700 border border-indigo-100 px-1 py-0.2 rounded font-black uppercase">
+                      PRO
+                    </span>
+                    <span className="text-[9px] bg-slate-50 text-slate-500 border border-slate-200 px-1 py-0.2 rounded font-mono hidden sm:inline">
+                      v1.3
+                    </span>
+                  </div>
+                  <h1 className="text-[11px] md:text-xs text-slate-500 font-semibold tracking-tight truncate max-w-[150px] sm:max-w-none">
+                    {siteSubtitle ||
+                      t(
+                        "Giải pháp cho doanh nghiệp",
+                        "Solutions for businesses",
+                      )}
+                  </h1>
+                </div>
               </div>
             )}
 
-            {/* SUPPORT DEVELOPER BUTTON */}
-            <button
-              onClick={() => setSupportModalOpen(true)}
-              className="flex items-center gap-1.5 text-xs text-amber-705 bg-amber-50 hover:bg-amber-100 px-3 py-2 rounded-lg border border-amber-200/60 transition-all font-extrabold cursor-pointer active:scale-95 shadow-sm shrink-0"
-              title={t("Ủng Hộ Nhà Phát Triển", "Support the Developer")}
-            >
-              <Heart size={14} className="fill-amber-500 text-amber-500 animate-pulse shrink-0" />
-              <span className="hidden sm:inline">{t("Ủng Hộ", "Donate")}</span>
-            </button>
- 
-            {/* BILINGUAL FLAG TOGGLE */}
-            <button
-              onClick={() => setLang(lang === "vi" ? "en" : "vi")}
-              className="px-2.5 py-2 hover:bg-slate-50 rounded-lg border border-slate-200 transition-all text-sm font-black flex items-center justify-center cursor-pointer active:scale-95 shadow-sm bg-white shrink-0"
-              title={lang === "vi" ? "Switch to English translation" : "Chuyển sang bản Tiếng Việt"}
-            >
-              <span className="mr-1.5 text-xs hidden md:inline">Language:</span>
-              <span className="text-base leading-none">{lang === "vi" ? "🇺🇸" : "🇻🇳"}</span>
-            </button>
- 
-            {route !== "home" && (
-              <button 
-                onClick={navigateToHome} 
-                className="flex items-center gap-1 text-xs text-slate-600 hover:text-slate-950 font-bold uppercase tracking-wider bg-slate-50 hover:bg-slate-100 px-3 py-2 rounded-lg border border-slate-200 transition-all active:scale-95 shrink-0"
+            <div className="flex items-center gap-2 shrink-0">
+              {/* SYSTEM ADMIN GEAR BUTTON - HIDDEN FOR SECURITY */}
+              {route === "globalAdmin" && (
+                <div className="p-2 rounded-lg border bg-indigo-50 text-indigo-700 border-indigo-200 shrink-0 shadow-sm">
+                  <Settings
+                    size={16}
+                    className="animate-spin text-indigo-500"
+                  />
+                </div>
+              )}
+
+              {/* SUPPORT DEVELOPER BUTTON */}
+              <button
+                onClick={() => setSupportModalOpen(true)}
+                className="flex items-center gap-1.5 text-xs text-amber-705 bg-amber-50 hover:bg-amber-100 px-3 py-2 rounded-lg border border-amber-200/60 transition-all font-extrabold cursor-pointer active:scale-95 shadow-sm shrink-0"
+                title={t("Ủng Hộ Nhà Phát Triển", "Support the Developer")}
               >
-                <ArrowLeft size={13} className="stroke-[2.5]" /> 
-                <span className="hidden md:inline">{t("Quay lại", "Back")}</span>
+                <Heart
+                  size={14}
+                  className="fill-amber-500 text-amber-500 animate-pulse shrink-0"
+                />
+                <span className="hidden sm:inline">
+                  {t("Ủng Hộ", "Donate")}
+                </span>
               </button>
-            )}
-            
-            {/* COMPANY ADMIN BUTTON - HIDDEN FOR SECURITY FOR EXTERNAL VIEWERS */}
-            {route === "admin" && activeCompany && (
-              <div className="flex items-center gap-1 text-[11px] text-indigo-700 bg-indigo-50 font-black uppercase tracking-wider px-3 py-2 rounded-lg border border-indigo-150 shrink-0">
-                <Settings size={13} className="animate-spin text-indigo-500" />
-                <span className="hidden sm:inline">{t("Quản trị", "Admin")}</span>
-              </div>
-            )}
+
+              {/* BILINGUAL FLAG TOGGLE */}
+              <button
+                onClick={() => setLang(lang === "vi" ? "en" : "vi")}
+                className="px-2.5 py-2 hover:bg-slate-50 rounded-lg border border-slate-200 transition-all text-sm font-black flex items-center justify-center cursor-pointer active:scale-95 shadow-sm bg-white shrink-0"
+                title={
+                  lang === "vi"
+                    ? "Switch to English translation"
+                    : "Chuyển sang bản Tiếng Việt"
+                }
+              >
+                <span className="mr-1.5 text-xs hidden md:inline">
+                  Language:
+                </span>
+                <span className="text-base leading-none">
+                  {lang === "vi" ? "🇺🇸" : "🇻🇳"}
+                </span>
+              </button>
+
+              {route !== "home" && (
+                <button
+                  onClick={navigateToHome}
+                  className="flex items-center gap-1 text-xs text-slate-600 hover:text-slate-950 font-bold uppercase tracking-wider bg-slate-50 hover:bg-slate-100 px-3 py-2 rounded-lg border border-slate-200 transition-all active:scale-95 shrink-0"
+                >
+                  <ArrowLeft size={13} className="stroke-[2.5]" />
+                  <span className="hidden md:inline">
+                    {t("Quay lại", "Back")}
+                  </span>
+                </button>
+              )}
+
+              {/* COMPANY ADMIN BUTTON - HIDDEN FOR SECURITY FOR EXTERNAL VIEWERS */}
+              {route === "admin" && activeCompany && (
+                <div className="flex items-center gap-1 text-[11px] text-indigo-700 bg-indigo-50 font-black uppercase tracking-wider px-3 py-2 rounded-lg border border-indigo-150 shrink-0">
+                  <Settings
+                    size={13}
+                    className="animate-spin text-indigo-500"
+                  />
+                  <span className="hidden sm:inline">
+                    {t("Quản trị", "Admin")}
+                  </span>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
-      </header>
+        </header>
       )}
 
       {/* MAIN LAYOUT GATEWAY */}
 
       {/* MAIN LAYOUT GATEWAY */}
       <main className="flex-1">
-        
         {/* ==================== 1. HOMEPAGE ==================== */}
         {route === "home" && (
           <div className="w-full bg-slate-50">
             {/* HERO BANNER */}
             <section className="bg-white border-b border-slate-200 py-16 px-6 relative z-30">
-              
               <div className="max-w-4xl mx-auto text-center relative z-10">
                 <h2 className="text-3xl md:text-5xl font-black tracking-tight text-slate-900 leading-tight">
-                  {t("Tạo Trang Thông Tin Xuất Hóa Đơn", "Create Company QR Invoice Portal")}
+                  {t(
+                    "Tạo Trang Thông Tin Xuất Hóa Đơn",
+                    "Create Company QR Invoice Portal",
+                  )}
                 </h2>
 
                 {/* Search / filter box integrated with Unified Live Autocomplete Search */}
@@ -1741,9 +1961,12 @@ export default function App() {
                   <div className="flex gap-2 p-1 bg-white shadow-lg rounded-lg border border-slate-200 focus-within:border-indigo-500 focus-within:ring-4 focus-within:ring-indigo-100 transition-all">
                     <div className="relative flex-1 flex items-center pl-3">
                       <Search className="text-slate-400 shrink-0" size={18} />
-                      <input 
-                        type="text" 
-                        placeholder={t("Nhập MST để tìm kiếm nhanh", "Enter tax code to fast search...")} 
+                      <input
+                        type="text"
+                        placeholder={t(
+                          "Nhập MST để tìm kiếm nhanh",
+                          "Enter tax code to fast search...",
+                        )}
                         value={searchQuery}
                         onChange={(e) => handleHeroSearchChange(e.target.value)}
                         className="w-full text-sm py-2.5 px-2 bg-transparent focus:outline-none placeholder-slate-400 font-semibold cursor-text"
@@ -1757,116 +1980,166 @@ export default function App() {
                   </div>
 
                   {/* Dynamic Suggestions Dropdown List overlay */}
-                  {searchQuery.trim().length >= 2 && (filteredCompanies.length > 0 || smartSuggestions.length > 0 || smartSearchLoading) && (
-                    <div className="absolute left-0 right-0 mt-2 bg-white border border-slate-200 rounded-xl shadow-2xl z-50 text-left overflow-hidden">
-                      <div className="max-h-[350px] overflow-y-auto divide-y divide-slate-100 divide-dashed no-scrollbar">
-                        
-                        {/* 1. MATCHING SYSTEM CHANNELS */}
-                        {filteredCompanies.length > 0 && (
-                          <div className="p-2">
-                            <span className="block text-[9px] font-black uppercase text-indigo-650 tracking-wider px-2.5 py-1 bg-indigo-50 border border-indigo-100/50 rounded-md">
-                              Đã có trang liên kết ({filteredCompanies.length})
-                            </span>
-                            <div className="mt-1 space-y-0.5">
-                              {filteredCompanies.map((c) => (
-                                <button
-                                  key={c.username}
-                                  type="button"
-                                  onClick={() => selectRegisteredCompany(c.username)}
-                                  className="w-full text-left px-2.5 py-2.5 hover:bg-slate-50 rounded-lg flex items-center justify-between transition-colors group cursor-pointer"
-                                >
-                                  <div className="flex items-center gap-2.5 min-w-0">
-                                    {c.logoUrl && (
-                                      <div className="w-8 h-8 rounded-lg bg-indigo-50 border border-indigo-100/30 flex items-center justify-center shrink-0">
-                                        <img src={c.logoUrl} alt="" className="w-5 h-5 object-contain"  crossOrigin="anonymous" referrerPolicy="no-referrer" />
+                  {searchQuery.trim().length >= 2 &&
+                    (filteredCompanies.length > 0 ||
+                      smartSuggestions.length > 0 ||
+                      smartSearchLoading) && (
+                      <div className="absolute left-0 right-0 mt-2 bg-white border border-slate-200 rounded-xl shadow-2xl z-50 text-left overflow-hidden">
+                        <div className="max-h-[350px] overflow-y-auto divide-y divide-slate-100 divide-dashed no-scrollbar">
+                          {/* 1. MATCHING SYSTEM CHANNELS */}
+                          {filteredCompanies.length > 0 && (
+                            <div className="p-2">
+                              <span className="block text-[9px] font-black uppercase text-indigo-650 tracking-wider px-2.5 py-1 bg-indigo-50 border border-indigo-100/50 rounded-md">
+                                Đã có trang liên kết ({filteredCompanies.length}
+                                )
+                              </span>
+                              <div className="mt-1 space-y-0.5">
+                                {filteredCompanies.map((c) => (
+                                  <button
+                                    key={c.username}
+                                    type="button"
+                                    onClick={() =>
+                                      selectRegisteredCompany(c.username)
+                                    }
+                                    className="w-full text-left px-2.5 py-2.5 hover:bg-slate-50 rounded-lg flex items-center justify-between transition-colors group cursor-pointer"
+                                  >
+                                    <div className="flex items-center gap-2.5 min-w-0">
+                                      {c.logoUrl && (
+                                        <div className="w-8 h-8 rounded-lg bg-indigo-50 border border-indigo-100/30 flex items-center justify-center shrink-0">
+                                          <img
+                                            src={c.logoUrl}
+                                            alt=""
+                                            className="w-5 h-5 object-contain"
+                                            crossOrigin="anonymous"
+                                            referrerPolicy="no-referrer"
+                                          />
+                                        </div>
+                                      )}
+                                      <div className="min-w-0">
+                                        <p className="text-xs font-bold text-slate-800 truncate group-hover:text-indigo-600 uppercase">
+                                          {c.companyName}
+                                        </p>
+                                        <p className="text-[10px] text-slate-400 font-mono">
+                                          /{c.username} • MST: {c.taxCode}
+                                        </p>
                                       </div>
-                                    )}
-                                    <div className="min-w-0">
-                                      <p className="text-xs font-bold text-slate-800 truncate group-hover:text-indigo-600 uppercase">
-                                        {c.companyName}
-                                      </p>
-                                      <p className="text-[10px] text-slate-400 font-mono">
-                                        /{c.username} • MST: {c.taxCode}
-                                      </p>
                                     </div>
-                                  </div>
-                                  <ChevronRight size={14} className="text-slate-350 group-hover:text-indigo-605 group-hover:translate-x-0.5 transition-all shrink-0 ml-1" />
-                                </button>
-                              ))}
+                                    <ChevronRight
+                                      size={14}
+                                      className="text-slate-350 group-hover:text-indigo-605 group-hover:translate-x-0.5 transition-all shrink-0 ml-1"
+                                    />
+                                  </button>
+                                ))}
+                              </div>
                             </div>
-                          </div>
-                        )}
+                          )}
 
-                        {/* 2. AUTOCOMPLETE TRA CUU ONLINE */}
-                        {smartSuggestions.length > 0 && (
-                          <div className="p-2">
-                            <span className="block text-[9px] font-black uppercase text-emerald-700 tracking-wider px-2.5 py-1 bg-emerald-50 border border-emerald-100/50 rounded-md flex items-center gap-1">
-                              <Sparkles size={11} className="text-emerald-500 animate-pulse" /> {t("Kết quả tra cứu thông minh (Điền nhanh)", "Smart Directory Results (Auto-fill)")}
-                            </span>
-                            <div className="mt-1 space-y-0.5">
-                              {smartSuggestions.map((item, idx) => (
-                                <button
-                                  key={idx}
-                                  type="button"
-                                  onClick={() => selectCompanySuggestion(item)}
-                                  className="w-full text-left px-2.5 py-2.5 hover:bg-slate-50 rounded-lg flex items-start gap-2.5 transition-all group cursor-pointer"
-                                >
-                                  <div className="w-8 h-8 rounded-lg bg-emerald-50 border border-emerald-100/30 flex items-center justify-center shrink-0 mt-0.5">
-                                    <Building2 size={13} className="text-emerald-600" />
-                                  </div>
-                                  <div className="min-w-0 flex-1">
-                                    <p className="text-xs font-bold text-slate-800 line-clamp-1 uppercase group-hover:text-emerald-600">
-                                      {item.name}
-                                    </p>
-                                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-0.5">
-                                      <p className="text-[10px] text-slate-400 font-mono">
-                                        Mã số thuế: {item.taxCode}
-                                      </p>
-                                      {item.director ? (
-                                        <p className="text-[10px] text-slate-500 font-medium px-1.5 py-[1px] bg-slate-100 rounded">
-                                          Giám Đốc: <span className="text-slate-700 font-semibold">{item.director}</span>
-                                        </p>
-                                      ) : item.address ? (
-                                        <p className="text-[10px] text-slate-500 font-medium px-1.5 py-[1px] bg-slate-100 rounded truncate max-w-[200px]" title={item.address}>
-                                          {item.address}
-                                        </p>
-                                      ) : null}
+                          {/* 2. AUTOCOMPLETE TRA CUU ONLINE */}
+                          {smartSuggestions.length > 0 && (
+                            <div className="p-2">
+                              <span className="block text-[9px] font-black uppercase text-emerald-700 tracking-wider px-2.5 py-1 bg-emerald-50 border border-emerald-100/50 rounded-md flex items-center gap-1">
+                                <Sparkles
+                                  size={11}
+                                  className="text-emerald-500 animate-pulse"
+                                />{" "}
+                                {t(
+                                  "Kết quả tra cứu thông minh (Điền nhanh)",
+                                  "Smart Directory Results (Auto-fill)",
+                                )}
+                              </span>
+                              <div className="mt-1 space-y-0.5">
+                                {smartSuggestions.map((item, idx) => (
+                                  <button
+                                    key={idx}
+                                    type="button"
+                                    onClick={() =>
+                                      selectCompanySuggestion(item)
+                                    }
+                                    className="w-full text-left px-2.5 py-2.5 hover:bg-slate-50 rounded-lg flex items-start gap-2.5 transition-all group cursor-pointer"
+                                  >
+                                    <div className="w-8 h-8 rounded-lg bg-emerald-50 border border-emerald-100/30 flex items-center justify-center shrink-0 mt-0.5">
+                                      <Building2
+                                        size={13}
+                                        className="text-emerald-600"
+                                      />
                                     </div>
-                                  </div>
-                                  <Plus size={14} className="text-slate-350 group-hover:text-emerald-600 shrink-0 mt-2" />
-                                </button>
-                              ))}
+                                    <div className="min-w-0 flex-1">
+                                      <p className="text-xs font-bold text-slate-800 line-clamp-1 uppercase group-hover:text-emerald-600">
+                                        {item.name}
+                                      </p>
+                                      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-0.5">
+                                        <p className="text-[10px] text-slate-400 font-mono">
+                                          Mã số thuế: {item.taxCode}
+                                        </p>
+                                        {item.director ? (
+                                          <p className="text-[10px] text-slate-500 font-medium px-1.5 py-[1px] bg-slate-100 rounded">
+                                            Giám Đốc:{" "}
+                                            <span className="text-slate-700 font-semibold">
+                                              {item.director}
+                                            </span>
+                                          </p>
+                                        ) : item.address ? (
+                                          <p
+                                            className="text-[10px] text-slate-500 font-medium px-1.5 py-[1px] bg-slate-100 rounded truncate max-w-[200px]"
+                                            title={item.address}
+                                          >
+                                            {item.address}
+                                          </p>
+                                        ) : null}
+                                      </div>
+                                    </div>
+                                    <Plus
+                                      size={14}
+                                      className="text-slate-350 group-hover:text-emerald-600 shrink-0 mt-2"
+                                    />
+                                  </button>
+                                ))}
+                              </div>
                             </div>
-                          </div>
-                        )}
+                          )}
 
-                        {/* 3. LOADER ON DYNAMIC LIVE REQUESTS */}
-                        {smartSearchLoading && smartSuggestions.length === 0 && filteredCompanies.length === 0 && (
-                          <div className="p-6 text-center text-slate-400 text-xs flex items-center justify-center gap-2">
-                            <span className="w-4 h-4 border-2 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></span>
-                            <span>{t("Đang dò tìm thông tin doanh nghiệp...", "Looking up company directory...")}</span>
-                          </div>
-                        )}
-                        
-                        {/* 4. TOTAL EMPTY FALLBACK */}
-                        {!smartSearchLoading && filteredCompanies.length === 0 && smartSuggestions.length === 0 && (
-                          <div className="p-6 text-center text-slate-400 text-xs">
-                            <p>{t(`Không tìm thấy kết quả phù hợp cho "${searchQuery}"`, `No matching results for "${searchQuery}"`)}</p>
-                          </div>
-                        )}
+                          {/* 3. LOADER ON DYNAMIC LIVE REQUESTS */}
+                          {smartSearchLoading &&
+                            smartSuggestions.length === 0 &&
+                            filteredCompanies.length === 0 && (
+                              <div className="p-6 text-center text-slate-400 text-xs flex items-center justify-center gap-2">
+                                <span className="w-4 h-4 border-2 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></span>
+                                <span>
+                                  {t(
+                                    "Đang dò tìm thông tin doanh nghiệp...",
+                                    "Looking up company directory...",
+                                  )}
+                                </span>
+                              </div>
+                            )}
+
+                          {/* 4. TOTAL EMPTY FALLBACK */}
+                          {!smartSearchLoading &&
+                            filteredCompanies.length === 0 &&
+                            smartSuggestions.length === 0 && (
+                              <div className="p-6 text-center text-slate-400 text-xs">
+                                <p>
+                                  {t(
+                                    `Không tìm thấy kết quả phù hợp cho "${searchQuery}"`,
+                                    `No matching results for "${searchQuery}"`,
+                                  )}
+                                </p>
+                              </div>
+                            )}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
                 </div>
               </div>
             </section>
 
             {/* QUICK PREVIEW & CREATION FORM */}
             <div className="max-w-7xl mx-auto px-6 py-12 grid grid-cols-1 lg:grid-cols-12 gap-8">
-              
               {/* LEFT - SUBMISSIONS FORM */}
-              <div id="create-form" className="lg:col-span-7 h-fit bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-lg flex flex-col">
-                
+              <div
+                id="create-form"
+                className="lg:col-span-7 h-fit bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-lg flex flex-col"
+              >
                 {/* Form Header with Quick Data Fill & Reset */}
                 <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-3 mb-4">
                   <div>
@@ -1874,7 +2147,7 @@ export default function App() {
                       {t("Thông Tin Doanh Nghiệp", "Company Profile")}
                     </h3>
                   </div>
-                  
+
                   <div className="flex items-center gap-1.5 shrink-0">
                     {/* Load Demo Data Button */}
                     <button
@@ -1903,11 +2176,17 @@ export default function App() {
                         setRegPrimaryColor(SAMPLE_COMPANY.primaryColor);
                         setRegAdminPassword("123456");
 
-                        showToast("Đã tải dữ liệu mẫu thành công lên form và màn hình xem trước!", "success");
+                        showToast(
+                          "Đã tải dữ liệu mẫu thành công lên form và màn hình xem trước!",
+                          "success",
+                        );
                       }}
                       className="inline-flex items-center gap-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-[10px] uppercase tracking-wider px-3 py-1.5 rounded-lg transition-all cursor-pointer select-none active:scale-[0.98]"
                     >
-                      <Sparkles size={11} className="text-indigo-500 animate-pulse" />
+                      <Sparkles
+                        size={11}
+                        className="text-indigo-500 animate-pulse"
+                      />
                       {t("Dữ liệu mẫu", "Sample Data")}
                     </button>
 
@@ -1938,8 +2217,11 @@ export default function App() {
                         setRegBankOwner("");
                         setRegPrimaryColor("#0f172a"); // Default slate
                         setRegAdminPassword("");
-                        
-                        showToast("Đã xóa trắng toàn bộ dữ liệu trên form!", "info");
+
+                        showToast(
+                          "Đã xóa trắng toàn bộ dữ liệu trên form!",
+                          "info",
+                        );
                       }}
                       title={t("Xóa toàn bộ, nhập lại từ đầu", "Reset Form")}
                       className="p-1.5 text-slate-400 hover:text-rose-650 hover:bg-rose-50 rounded-lg border border-slate-200 hover:border-rose-100 transition-all cursor-pointer active:scale-95 flex items-center justify-center"
@@ -1953,14 +2235,15 @@ export default function App() {
                   {/* Step 1: Link & Username */}
                   <div>
                     <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
-                      {t("Đường dẫn (Username/Slug)", "Username/Slug")} <span className="text-red-500">*</span>
+                      {t("Đường dẫn (Username/Slug)", "Username/Slug")}{" "}
+                      <span className="text-red-500">*</span>
                     </label>
                     <div className="flex items-stretch rounded-xl border border-slate-200 overflow-hidden focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-50/50 transition-all">
                       <span className="bg-slate-50 px-3.5 flex items-center text-xs text-slate-400 border-r border-slate-200 font-mono select-none">
                         c/
                       </span>
-                      <input 
-                        type="text" 
+                      <input
+                        type="text"
                         required
                         placeholder="cong-ty-cua-ban"
                         value={tempUsername}
@@ -1970,36 +2253,56 @@ export default function App() {
                       />
                       {tempUsername && (
                         <span className="px-3 flex items-center text-xs">
-                          {usernameStatus === "checking" && <span className="animate-spin text-slate-400">⚡</span>}
-                          {usernameStatus === "available" && <span className="text-emerald-500 font-semibold">{t("Khả dụng ✓", "Available ✓")}</span>}
-                          {usernameStatus === "taken" && <span className="text-red-500 font-semibold font-sans">{t("Đã trùng tên", "Taken/Invalid")}</span>}
+                          {usernameStatus === "checking" && (
+                            <span className="animate-spin text-slate-400">
+                              ⚡
+                            </span>
+                          )}
+                          {usernameStatus === "available" && (
+                            <span className="text-emerald-500 font-semibold">
+                              {t("Khả dụng ✓", "Available ✓")}
+                            </span>
+                          )}
+                          {usernameStatus === "taken" && (
+                            <span className="text-red-500 font-semibold font-sans">
+                              {t("Đã trùng tên", "Taken/Invalid")}
+                            </span>
+                          )}
                         </span>
                       )}
                     </div>
                     <p className="mt-1 text-[11px] text-slate-400">
-                      {t("URL:", "URL:")} <strong className="font-mono text-slate-700 font-semibold bg-emerald-50 px-1 rounded">{globalBaseUrl}/{tempUsername || "username"}</strong>
+                      {t("URL:", "URL:")}{" "}
+                      <strong className="font-mono text-slate-700 font-semibold bg-emerald-50 px-1 rounded">
+                        {globalBaseUrl}/{tempUsername || "username"}
+                      </strong>
                     </p>
                   </div>
 
                   {/* Step 2: Corporate Detail */}
                   <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-100/50 space-y-4">
-                    
                     {/* Tax Code Search */}
                     <div>
                       <label className="block text-xs font-semibold text-slate-600 mb-1 flex justify-between items-center">
-                        <span>{t("Mã Số Thuế", "Tax Code")} <span className="text-red-500">*</span></span>
+                        <span>
+                          {t("Mã Số Thuế", "Tax Code")}{" "}
+                          <span className="text-red-500">*</span>
+                        </span>
                       </label>
                       <div className="flex gap-2">
-                        <input 
-                          type="text" 
+                        <input
+                          type="text"
                           required
-                          placeholder={t("Nhập mã số thuế...", "Enter tax code...")}
+                          placeholder={t(
+                            "Nhập mã số thuế...",
+                            "Enter tax code...",
+                          )}
                           value={tempTaxCode}
                           onChange={(e) => {
-                            setTempTaxCode(e.target.value.replace(/\s+/g, ''));
+                            setTempTaxCode(e.target.value.replace(/\s+/g, ""));
                           }}
                           onBlur={() => {
-                            const cleaned = tempTaxCode.replace(/\s+/g, '');
+                            const cleaned = tempTaxCode.replace(/\s+/g, "");
                             if (cleaned) {
                               setRegTaxCode(cleaned);
                             }
@@ -2009,9 +2312,12 @@ export default function App() {
                         <button
                           type="button"
                           onClick={() => {
-                            const cleaned = tempTaxCode.replace(/\s+/g, '');
+                            const cleaned = tempTaxCode.replace(/\s+/g, "");
                             if (!cleaned) {
-                              showToast("Vui lòng nhập mã số thuế trước khi tra cứu", "info");
+                              showToast(
+                                "Vui lòng nhập mã số thuế trước khi tra cứu",
+                                "info",
+                              );
                             } else {
                               setRegTaxCode(cleaned);
                               lookupTaxCode(cleaned);
@@ -2031,10 +2337,11 @@ export default function App() {
 
                     <div>
                       <label className="block text-xs font-semibold text-slate-600 mb-1">
-                        {t("Tên công ty", "Company Name")} <span className="text-red-500">*</span>
+                        {t("Tên công ty", "Company Name")}{" "}
+                        <span className="text-red-500">*</span>
                       </label>
-                      <input 
-                        type="text" 
+                      <input
+                        type="text"
                         required
                         placeholder={t("Tên đầy đủ", "Complete name")}
                         value={tempCompanyName}
@@ -2048,7 +2355,8 @@ export default function App() {
                         }}
                         onBlur={() => {
                           setRegCompanyName(tempCompanyName);
-                          const unsigned = removeVietnameseTones(tempCompanyName);
+                          const unsigned =
+                            removeVietnameseTones(tempCompanyName);
                           setTempBankOwner(unsigned);
                           setRegBankOwner(unsigned);
                         }}
@@ -2058,12 +2366,16 @@ export default function App() {
 
                     <div>
                       <label className="block text-xs font-semibold text-slate-600 mb-1">
-                        {t("Địa Chỉ", "Address")} <span className="text-red-500">*</span>
+                        {t("Địa Chỉ", "Address")}{" "}
+                        <span className="text-red-500">*</span>
                       </label>
-                      <input 
-                        type="text" 
+                      <input
+                        type="text"
                         required
-                        placeholder={t("Số nhà, tên đường, phường, tỉnh thành...", "Street, district, city...")}
+                        placeholder={t(
+                          "Số nhà, tên đường, phường, tỉnh thành...",
+                          "Street, district, city...",
+                        )}
                         value={tempAddress}
                         onChange={(e) => setTempAddress(e.target.value)}
                         onBlur={() => setRegAddress(tempAddress)}
@@ -2076,21 +2388,26 @@ export default function App() {
                         <label className="block text-xs font-semibold text-slate-600 mb-1">
                           {t("Số điện thoại", "Phone Number")}
                         </label>
-                        <input 
-                          type="text" 
+                        <input
+                          type="text"
                           placeholder="0912345678"
                           maxLength={13}
                           value={tempPhone}
                           onChange={(e) => setTempPhone(e.target.value)}
                           onBlur={() => setRegPhone(tempPhone)}
                           className={`w-full py-2.5 px-3 rounded-lg border text-sm focus:outline-none transition-all ${
-                            isPhoneInvalid(tempPhone) 
-                              ? "border-red-400 bg-red-50 text-red-900 focus:border-red-500 focus:ring-1 focus:ring-red-500" 
+                            isPhoneInvalid(tempPhone)
+                              ? "border-red-400 bg-red-50 text-red-900 focus:border-red-500 focus:ring-1 focus:ring-red-500"
                               : "border-slate-200 bg-white focus:border-indigo-600 focus:bg-white"
                           }`}
                         />
                         {isPhoneInvalid(tempPhone) && (
-                          <p className="text-[10px] text-red-500 mt-1 font-medium">{t("Số điện thoại không hợp lệ (chỉ nhập số, tối đa 13 ký tự).", "Invalid phone number.")}</p>
+                          <p className="text-[10px] text-red-500 mt-1 font-medium">
+                            {t(
+                              "Số điện thoại không hợp lệ (chỉ nhập số, tối đa 13 ký tự).",
+                              "Invalid phone number.",
+                            )}
+                          </p>
                         )}
                       </div>
 
@@ -2098,20 +2415,22 @@ export default function App() {
                         <label className="block text-xs font-semibold text-slate-600 mb-1">
                           {t("Email nhận hóa đơn", "Invoice Email")}
                         </label>
-                        <input 
-                          type="email" 
+                        <input
+                          type="email"
                           placeholder="invoice@company.com"
                           value={tempEmail}
                           onChange={(e) => setTempEmail(e.target.value)}
                           onBlur={() => setRegEmail(tempEmail)}
                           className={`w-full py-2.5 px-3 rounded-lg border text-sm focus:outline-none transition-all ${
-                            isEmailInvalid(tempEmail) 
-                              ? "border-red-400 bg-red-50 text-red-900 focus:border-red-500 focus:ring-1 focus:ring-red-500" 
+                            isEmailInvalid(tempEmail)
+                              ? "border-red-400 bg-red-50 text-red-900 focus:border-red-500 focus:ring-1 focus:ring-red-500"
                               : "border-slate-200 bg-white focus:border-indigo-600 focus:bg-white"
                           }`}
                         />
                         {isEmailInvalid(tempEmail) && (
-                          <p className="text-[10px] text-red-500 mt-1 font-medium">{t("Email không hợp lệ.", "Invalid email address.")}</p>
+                          <p className="text-[10px] text-red-500 mt-1 font-medium">
+                            {t("Email không hợp lệ.", "Invalid email address.")}
+                          </p>
                         )}
                       </div>
                     </div>
@@ -2120,7 +2439,7 @@ export default function App() {
                   {/* Optional Bank Tick Trigger Checkbox */}
                   <div className="bg-slate-50/30 p-1.5 rounded-xl border border-slate-200/55">
                     <label className="flex items-center gap-3 p-3.5 bg-white rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer select-none transition-all shadow-sm">
-                      <input 
+                      <input
                         type="checkbox"
                         checked={showQRInputs}
                         onChange={(e) => setShowQRInputs(e.target.checked)}
@@ -2128,7 +2447,9 @@ export default function App() {
                         id="checkbox-show-qr"
                       />
                       <div>
-                        <p className="text-xs font-bold text-slate-800 uppercase tracking-wide">{t("Hiện Mã QR thanh toán", "Show QR Payment Code")}</p>
+                        <p className="text-xs font-bold text-slate-800 uppercase tracking-wide">
+                          {t("Hiện Mã QR thanh toán", "Show QR Payment Code")}
+                        </p>
                       </div>
                     </label>
                   </div>
@@ -2137,21 +2458,30 @@ export default function App() {
                   {showQRInputs && (
                     <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-100/50 space-y-4 animate-fade-in">
                       <p className="text-xs font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1">
-                        <span className="w-1.5 h-4 bg-indigo-600 inline-block rounded"></span> {t("Thông Tin ngân hàng", "Bank Information")}
+                        <span className="w-1.5 h-4 bg-indigo-600 inline-block rounded"></span>{" "}
+                        {t("Thông Tin ngân hàng", "Bank Information")}
                       </p>
-                      
+
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                           <label className="block text-xs font-semibold text-slate-600 mb-1">
-                            {t("Chọn ngân hàng phát hành", "Select Issuing Bank")}  <span className="text-red-500">*</span>
+                            {t(
+                              "Chọn ngân hàng phát hành",
+                              "Select Issuing Bank",
+                            )}{" "}
+                            <span className="text-red-500">*</span>
                           </label>
-                          <select 
+                          <select
                             value={regBankName}
                             onChange={(e) => {
                               const selected = e.target.value;
                               setRegBankName(selected);
                               if (tempBankAccount) {
-                                handleBankLookup(selected, tempBankAccount, false);
+                                handleBankLookup(
+                                  selected,
+                                  tempBankAccount,
+                                  false,
+                                );
                               }
                             }}
                             className="w-full py-2.5 px-3 rounded-lg border border-slate-200 text-sm focus:border-indigo-600 focus:outline-none bg-white transition-all"
@@ -2166,18 +2496,30 @@ export default function App() {
 
                         <div>
                           <label className="block text-xs font-semibold text-slate-600 mb-1">
-                            {t("Số tài khoản", "Bank Account Number")}  <span className="text-red-500">*</span>
+                            {t("Số tài khoản", "Bank Account Number")}{" "}
+                            <span className="text-red-500">*</span>
                           </label>
-                          <input 
-                            type="text" 
+                          <input
+                            type="text"
                             required={showQRInputs}
-                            placeholder={t("Số tài khoản", "Bank account number")}
+                            placeholder={t(
+                              "Số tài khoản",
+                              "Bank account number",
+                            )}
                             value={tempBankAccount}
-                            onChange={(e) => setTempBankAccount(e.target.value.replace(/\D/g, ""))}
+                            onChange={(e) =>
+                              setTempBankAccount(
+                                e.target.value.replace(/\D/g, ""),
+                              )
+                            }
                             onBlur={() => {
                               setRegBankAccount(tempBankAccount);
                               if (tempBankAccount) {
-                                handleBankLookup(regBankName, tempBankAccount, false);
+                                handleBankLookup(
+                                  regBankName,
+                                  tempBankAccount,
+                                  false,
+                                );
                               }
                             }}
                             className="w-full py-2.5 px-3 rounded-lg border border-slate-200 text-sm focus:border-indigo-600 focus:outline-none font-mono bg-white"
@@ -2188,7 +2530,8 @@ export default function App() {
                       <div>
                         <div className="flex justify-between items-center mb-1">
                           <label className="block text-xs font-semibold text-slate-600">
-                            {t("Tên Tài Khoản", "Account Name")} <span className="text-red-500">*</span>
+                            {t("Tên Tài Khoản", "Account Name")}{" "}
+                            <span className="text-red-500">*</span>
                           </label>
                           <label className="flex items-center gap-1.5 text-xs text-indigo-600 font-semibold cursor-pointer select-none">
                             <input
@@ -2197,18 +2540,23 @@ export default function App() {
                               onChange={(e) => {
                                 setSyncWithCompany(e.target.checked);
                                 if (e.target.checked && tempCompanyName) {
-                                  const unsignedOwner = removeVietnameseTones(tempCompanyName).toUpperCase();
+                                  const unsignedOwner =
+                                    removeVietnameseTones(
+                                      tempCompanyName,
+                                    ).toUpperCase();
                                   setTempBankOwner(unsignedOwner);
                                   setRegBankOwner(unsignedOwner);
                                 }
                               }}
                               className="w-3.5 h-3.5 rounded text-indigo-600 focus:ring-indigo-505 cursor-pointer accent-indigo-600"
                             />
-                            <span>{t("Giống tên công ty", "Same as company name")}</span>
+                            <span>
+                              {t("Giống tên công ty", "Same as company name")}
+                            </span>
                           </label>
                         </div>
-                        <input 
-                          type="text" 
+                        <input
+                          type="text"
                           required={showQRInputs}
                           placeholder="CONG TY CO PHAN CONG NGHE..."
                           value={tempBankOwner}
@@ -2227,26 +2575,43 @@ export default function App() {
 
                   {/* Step 4: Custom Logo & Auto Theme Color */}
                   <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-100/50 space-y-4">
-                    <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">{t("LOGO CÔNG TY ( Không Bắt Buộc )", "Company Logo (Optional)")}</p>
-                    
+                    <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">
+                      {t(
+                        "LOGO CÔNG TY ( Không Bắt Buộc )",
+                        "Company Logo (Optional)",
+                      )}
+                    </p>
+
                     <div className="space-y-3">
                       <div>
                         <label className="block text-xs font-semibold text-slate-600 mb-1">
                           {t("(.JPG, .PNG, .SVG)", "(.JPG, .PNG, .SVG)")}
                         </label>
-                        <input 
-                          type="file" 
+                        <input
+                          type="file"
                           accept="image/*"
                           onChange={(e) => handleLogoUpload(e, "reg")}
                           className="w-full text-xs text-slate-500 file:mr-2 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer"
                         />
                         {regLogoUrl && (
                           <div className="mt-2.5 flex items-center gap-2">
-                            <span className="text-[10px] text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-150">✓ {t("Đã tải logo thành công", "Logo uploaded successfully")}</span>
-                            <button type="button" onClick={() => {
-                              setRegLogoUrl("");
-                              setRegPrimaryColor("#4F46E5"); // revert to fallback indigo
-                            }} className="text-red-500 hover:text-red-700 text-xs font-bold">{t("Xóa logo", "Remove logo")}</button>
+                            <span className="text-[10px] text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-150">
+                              ✓{" "}
+                              {t(
+                                "Đã tải logo thành công",
+                                "Logo uploaded successfully",
+                              )}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setRegLogoUrl("");
+                                setRegPrimaryColor("#4F46E5"); // revert to fallback indigo
+                              }}
+                              className="text-red-500 hover:text-red-700 text-xs font-bold"
+                            >
+                              {t("Xóa logo", "Remove logo")}
+                            </button>
                           </div>
                         )}
                       </div>
@@ -2256,23 +2621,28 @@ export default function App() {
                   {/* Step 5: Admin Password */}
                   <div className="bg-slate-50/50 p-4 rounded-xl border border-slate-200">
                     <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                      {t("Đặt Mật Khẩu", "Set Password")} <span className="text-red-500">*</span>
+                      {t("Đặt Mật Khẩu", "Set Password")}{" "}
+                      <span className="text-red-500">*</span>
                     </label>
                     <div className="relative">
-                      <input 
-                        type={showRegPassword ? "text" : "password"} 
+                      <input
+                        type={showRegPassword ? "text" : "password"}
                         required
                         placeholder="Tối thiểu 4 ký tự"
                         value={regAdminPassword}
                         onChange={(e) => setRegAdminPassword(e.target.value)}
                         className="w-full py-2.5 pl-3 pr-10 rounded border border-slate-200 text-sm focus:border-indigo-500 focus:outline-none focus:ring-4 focus:ring-indigo-50 bg-white transition-all font-mono"
                       />
-                      <button 
+                      <button
                         type="button"
                         onClick={() => setShowRegPassword(!showRegPassword)}
                         className="absolute right-3 top-3 text-slate-400 hover:text-slate-600 transition-colors"
                       >
-                        {showRegPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                        {showRegPassword ? (
+                          <EyeOff size={16} />
+                        ) : (
+                          <Eye size={16} />
+                        )}
                       </button>
                     </div>
                   </div>
@@ -2281,14 +2651,17 @@ export default function App() {
                   <div className="bg-amber-50 p-4 rounded-xl border border-amber-100 flex items-center justify-between gap-4">
                     <div className="flex-1">
                       <label className="block text-xs font-semibold text-slate-800 mb-1 flex items-center gap-2">
-                        Xác minh bạn là con người <span className="text-red-500">*</span>
+                        Xác minh bạn là con người{" "}
+                        <span className="text-red-500">*</span>
                       </label>
                       <p className="text-xs text-amber-700 uppercase tracking-widest font-extrabold flex items-center gap-2 mt-1.5">
-                        <span className="bg-white px-2 py-1 rounded shadow-sm border border-amber-200">{captchaQ.a} + {captchaQ.b} = ?</span>
+                        <span className="bg-white px-2 py-1 rounded shadow-sm border border-amber-200">
+                          {captchaQ.a} + {captchaQ.b} = ?
+                        </span>
                       </p>
                     </div>
-                    <input 
-                      type="number" 
+                    <input
+                      type="number"
                       required
                       placeholder="Kết quả..."
                       value={captchaA}
@@ -2314,28 +2687,41 @@ export default function App() {
                 </form>
               </div>
 
-            {/* RIGHT - PREVIEW PROFILE CARD */}
+              {/* RIGHT - PREVIEW PROFILE CARD */}
               <div className="lg:col-span-5 flex flex-col gap-6">
-                
                 {/* PREVIEW CONTAINER */}
                 <div className="bg-slate-100 border border-slate-200 py-10 px-4 rounded-2xl flex flex-col items-center justify-center relative overflow-hidden min-h-[660px] sm:min-h-[750px]">
-
                   {/* Dynamic Ambient Logo Background Aesthetic Layer */}
                   <div className="absolute inset-0 overflow-hidden pointer-events-none z-0 select-none bg-slate-50">
                     {regLogoUrl ? (
                       <>
                         <div className="absolute top-1/4 left-1/4 w-[120%] h-[120%] -translate-x-1/2 -translate-y-1/2 opacity-30 blur-[100px] mix-blend-multiply">
-                          <img src={regLogoUrl} className="w-full h-full object-cover" alt=""  crossOrigin="anonymous" referrerPolicy="no-referrer" />
+                          <img
+                            src={regLogoUrl}
+                            className="w-full h-full object-cover"
+                            alt=""
+                            crossOrigin="anonymous"
+                            referrerPolicy="no-referrer"
+                          />
                         </div>
                         <div className="absolute bottom-0 right-0 w-[120%] h-[120%] translate-x-1/3 translate-y-1/3 opacity-20 blur-[80px] mix-blend-multiply">
-                          <img src={regLogoUrl} className="w-full h-full object-cover" alt=""  crossOrigin="anonymous" referrerPolicy="no-referrer" />
+                          <img
+                            src={regLogoUrl}
+                            className="w-full h-full object-cover"
+                            alt=""
+                            crossOrigin="anonymous"
+                            referrerPolicy="no-referrer"
+                          />
                         </div>
                       </>
                     ) : (
-                      <div className="absolute inset-0 opacity-40 blur-[100px]" style={{ 
-                        background: `radial-gradient(circle at 50% 50%, ${regPrimaryColor}40 0%, transparent 60%),
-                                      radial-gradient(circle at 100% 0%, ${regPrimaryColor}30 0%, transparent 50%)` 
-                      }} />
+                      <div
+                        className={`absolute inset-0 opacity-40 ${isCapturing ? "" : "blur-[100px]"}`}
+                        style={{
+                          background: `radial-gradient(circle at 50% 50%, ${regPrimaryColor}40 0%, transparent 60%),
+                                      radial-gradient(circle at 100% 0%, ${regPrimaryColor}30 0%, transparent 50%)`,
+                        }}
+                      />
                     )}
                   </div>
 
@@ -2346,129 +2732,182 @@ export default function App() {
                   </div>
 
                   {/* Device shell mockup container */}
-                  <div className="w-full sm:max-w-[345px] h-[550px] sm:h-[min(650px,82vh)] bg-transparent sm:bg-slate-900 rounded-none sm:rounded-[45px] shadow-none sm:shadow-2xl relative flex flex-col z-10 mx-auto overflow-hidden" style={{ transform: "translate3d(0, 0, 0)", isolation: "isolate" }}>
+                  <div
+                    className="w-full sm:max-w-[345px] h-[550px] sm:h-[min(650px,82vh)] bg-transparent sm:bg-slate-900 rounded-none sm:rounded-[45px] shadow-none sm:shadow-2xl relative flex flex-col z-10 mx-auto overflow-hidden"
+                    style={{
+                      transform: "translate3d(0, 0, 0)",
+                      isolation: "isolate",
+                    }}
+                  >
                     {/* Perfect outer clipping layer to prevent hardware acceleration corner leaking - absolute inset bounds the screen perfectly inside the bezel */}
-                    <div className="absolute inset-0 sm:inset-[10px] bg-white rounded-none sm:rounded-[35px] overflow-hidden flex flex-col border-0 sm:border border-slate-200/50 shadow-none sm:shadow-none" style={{ transform: "translate3d(0, 0, 0)", isolation: "isolate" }}>
+                    <div
+                      className="absolute inset-0 sm:inset-[10px] bg-white rounded-none sm:rounded-[35px] overflow-hidden flex flex-col border-0 sm:border border-slate-200/50 shadow-none sm:shadow-none"
+                      style={{
+                        transform: "translate3d(0, 0, 0)",
+                        isolation: "isolate",
+                      }}
+                    >
                       <div className="w-full h-full rounded-none sm:rounded-[35px] overflow-x-hidden overflow-y-auto relative flex flex-col custom-scrollbar">
-                    
-                    {/* BRAND BACKGROUND INSIDE DEVICE */}
-                    {regLogoUrl && (
-                      <div className="absolute inset-0 z-0 pointer-events-none select-none opacity-15 mix-blend-multiply flex items-center justify-center overflow-hidden rounded-none sm:rounded-[35px]">
-                        <img 
-                          src={regLogoUrl} 
-                          alt="" 
-                          className="w-[150%] h-[150%] object-cover blur-[8px]" 
-                        />
-                      </div>
-                    )}
-
-                    {/* App mockup scroll screen */}
-                    <div className="flex-1 rounded-none sm:rounded-[35px] overflow-y-auto no-scrollbar relative flex flex-col bg-white/70 backdrop-blur-md">
-                      
-                      {/* Logo header display */}
-                      <div className="flex flex-col items-center text-center pt-7 px-5 pb-5 border-b border-slate-200/50 bg-white/80 relative overflow-hidden rounded-t-none sm:rounded-t-[35px] shrink-0">
+                        {/* BRAND BACKGROUND INSIDE DEVICE */}
                         {regLogoUrl && (
-                          <div 
-                            className="absolute inset-0 opacity-[0.10] bg-center bg-cover scale-125 blur-[4px] pointer-events-none" 
-                            style={{ backgroundImage: `url(${regLogoUrl})` }}
-                          />
+                          <div className="absolute inset-0 z-0 pointer-events-none select-none opacity-15 mix-blend-multiply flex items-center justify-center overflow-hidden rounded-none sm:rounded-[35px]">
+                            <img
+                              src={regLogoUrl}
+                              alt=""
+                              className={`w-[150%] h-[150%] object-cover ${isCapturing ? "" : "blur-[8px]"}`}
+                            />
+                          </div>
                         )}
-                        <div className="relative z-10 flex flex-col items-center w-full">
-                          {regLogoUrl && (
-                            <div className="w-16 h-16 bg-white/90 rounded-2xl border border-slate-200 flex items-center justify-center p-2 mb-3 overflow-hidden shadow-sm shrink-0" style={{ borderColor: regPrimaryColor }}>
-                              <img src={regLogoUrl} alt="Logo preview" referrerPolicy="no-referrer" className={`max-w-full max-h-full object-contain ${isCapturing ? "" : "mix-blend-multiply"}`}  crossOrigin="anonymous" />
-                            </div>
-                          )}
 
-                          <div className="text-[9.5px] sm:text-[10.5px] font-bold tracking-widest text-[#505a73] opacity-80 uppercase mt-1 mb-1.5 shrink-0">
-                            {t("Thông tin xuất hóa đơn", "Invoice Information")}
+                        {/* App mockup scroll screen */}
+                        <div className="flex-1 rounded-none sm:rounded-[35px] overflow-y-auto no-scrollbar relative flex flex-col bg-white/70 backdrop-blur-md">
+                          {/* Logo header display */}
+                          <div className="flex flex-col items-center text-center pt-7 px-5 pb-5 border-b border-slate-200/50 bg-white/80 relative overflow-hidden rounded-t-none sm:rounded-t-[35px] shrink-0">
+                            {regLogoUrl && (
+                              <div
+                                className={`absolute inset-0 opacity-[0.10] bg-center bg-cover scale-125 pointer-events-none ${isCapturing ? "" : "blur-[4px]"}`}
+                                style={{
+                                  backgroundImage: `url(${regLogoUrl})`,
+                                }}
+                              />
+                            )}
+                            <div className="relative z-10 flex flex-col items-center w-full">
+                              {regLogoUrl && (
+                                <div
+                                  className="w-16 h-16 bg-white/90 rounded-2xl border border-slate-200 flex items-center justify-center p-2 mb-3 overflow-hidden shadow-sm shrink-0"
+                                  style={{ borderColor: regPrimaryColor }}
+                                >
+                                  <img
+                                    src={regLogoUrl}
+                                    alt="Logo preview"
+                                    referrerPolicy="no-referrer"
+                                    className={`max-w-full max-h-full object-contain ${isCapturing ? "" : "mix-blend-multiply"}`}
+                                    crossOrigin="anonymous"
+                                  />
+                                </div>
+                              )}
+
+                              <div className="text-[9.5px] sm:text-[10.5px] font-bold tracking-widest text-[#505a73] opacity-80 uppercase mt-1 mb-1.5 shrink-0">
+                                {t(
+                                  "Thông tin xuất hóa đơn",
+                                  "Invoice Information",
+                                )}
+                              </div>
+
+                              <h4 className="text-[13px] sm:text-sm font-black text-slate-800 uppercase tracking-normal leading-relaxed break-words px-1">
+                                {regCompanyName || "TÊN ĐẦY ĐỦ CÔNG TY"}
+                              </h4>
+                            </div>
                           </div>
 
-                          <h4 className="text-[13px] sm:text-sm font-black text-slate-800 uppercase tracking-normal leading-relaxed break-words px-1">
-                            {regCompanyName || "TÊN ĐẦY ĐỦ CÔNG TY"}
-                          </h4>
+                          {/* Display cards / quick preview items */}
+                          <div className="p-6 space-y-4">
+                            {/* MST button preview */}
+                            <div className="w-full text-left bg-slate-50 border border-slate-200 p-3.5 rounded-xl transition-all flex items-center justify-between">
+                              <div className="max-w-[85%]">
+                                <span className="text-[8px] uppercase text-slate-400 font-bold block mb-0.5 font-sans">
+                                  Mã số thuế
+                                </span>
+                                <span className="text-sm font-mono font-bold text-slate-800 leading-none">
+                                  {regTaxCode || "0101234567"}
+                                </span>
+                              </div>
+                              <Copy size={16} className="text-slate-400" />
+                            </div>
+
+                            {/* Address button preview */}
+                            <div className="w-full text-left bg-slate-50 border border-slate-200 p-3.5 rounded-xl transition-all flex items-start justify-between gap-2">
+                              <div className="flex-1 pr-1">
+                                <span className="text-[8px] uppercase text-slate-400 font-bold block mb-0.5 font-sans">
+                                  Địa chỉ
+                                </span>
+                                <span className="text-xs font-bold text-slate-700 leading-relaxed block break-words">
+                                  {regAddress || "Địa chỉ xuất hóa đơn..."}
+                                </span>
+                              </div>
+                              <Copy
+                                size={16}
+                                className="text-slate-400 shrink-0 mt-0.5"
+                              />
+                            </div>
+
+                            {/* Phone button preview (dynamic) */}
+                            {regPhone && (
+                              <div className="w-full text-left bg-emerald-50/50 border border-emerald-100 p-3.5 rounded-xl transition-all flex items-center justify-between animate-fade-in">
+                                <div className="max-w-[85%]">
+                                  <span className="text-[8px] uppercase text-emerald-600 font-bold block mb-0.5 font-sans">
+                                    Số điện thoại
+                                  </span>
+                                  <span className="text-sm font-mono font-extrabold text-emerald-800 block leading-none">
+                                    {regPhone}
+                                  </span>
+                                </div>
+                                <Copy size={16} className="text-emerald-400" />
+                              </div>
+                            )}
+
+                            {/* Email button preview (dynamic) */}
+                            {regEmail && (
+                              <div className="w-full text-left bg-emerald-50/50 border border-emerald-100 p-3.5 rounded-xl transition-all flex items-center justify-between animate-fade-in">
+                                <div className="max-w-[85%]">
+                                  <span className="text-[8px] uppercase text-emerald-600 font-bold block mb-0.5 font-sans">
+                                    Email nhận hóa đơn
+                                  </span>
+                                  <span className="text-xs font-extrabold text-emerald-800 block leading-tight truncate">
+                                    {regEmail}
+                                  </span>
+                                </div>
+                                <Copy size={16} className="text-emerald-400" />
+                              </div>
+                            )}
+
+                            {/* Bank Card button preview (conditioned by QR ticket trigger) */}
+                            {showQRInputs &&
+                              (regBankAccount || regBankOwner) && (
+                                <div className="w-full text-left bg-slate-50 border border-slate-200 p-3.5 rounded-xl transition-all flex items-center justify-between animate-fade-in">
+                                  <div className="max-w-[85%]">
+                                    <span className="text-[8px] uppercase text-slate-400 font-bold block mb-0.5 font-sans">
+                                      Số tài khoản thanh toán
+                                    </span>
+                                    <span className="text-sm font-mono font-extrabold text-indigo-600 block">
+                                      {regBankAccount || "123456789"}
+                                    </span>
+                                    <span className="text-[10px] text-slate-500 uppercase font-bold block leading-none mt-1 font-sans">
+                                      {regBankOwner || "NGUYEN VAN A"}
+                                    </span>
+                                  </div>
+                                  <CreditCard
+                                    size={16}
+                                    className="text-slate-400"
+                                  />
+                                </div>
+                              )}
+                          </div>
+
+                          {/* Copy tutorial text removed */}
                         </div>
                       </div>
-
-                      {/* Display cards / quick preview items */}
-                      <div className="p-6 space-y-4">
-                        
-                        {/* MST button preview */}
-                        <div className="w-full text-left bg-slate-50 border border-slate-200 p-3.5 rounded-xl transition-all flex items-center justify-between">
-                          <div className="max-w-[85%]">
-                            <span className="text-[8px] uppercase text-slate-400 font-bold block mb-0.5 font-sans">Mã số thuế</span>
-                            <span className="text-sm font-mono font-bold text-slate-800 leading-none">{regTaxCode || "0101234567"}</span>
-                          </div>
-                          <Copy size={16} className="text-slate-400" />
-                        </div>
-
-                        {/* Address button preview */}
-                        <div className="w-full text-left bg-slate-50 border border-slate-200 p-3.5 rounded-xl transition-all flex items-start justify-between gap-2">
-                          <div className="flex-1 pr-1">
-                            <span className="text-[8px] uppercase text-slate-400 font-bold block mb-0.5 font-sans">Địa chỉ</span>
-                            <span className="text-xs font-bold text-slate-700 leading-relaxed block break-words">
-                              {regAddress || "Địa chỉ xuất hóa đơn..."}
-                            </span>
-                          </div>
-                          <Copy size={16} className="text-slate-400 shrink-0 mt-0.5" />
-                        </div>
-
-                        {/* Phone button preview (dynamic) */}
-                        {regPhone && (
-                          <div className="w-full text-left bg-emerald-50/50 border border-emerald-100 p-3.5 rounded-xl transition-all flex items-center justify-between animate-fade-in">
-                            <div className="max-w-[85%]">
-                              <span className="text-[8px] uppercase text-emerald-600 font-bold block mb-0.5 font-sans">Số điện thoại</span>
-                              <span className="text-sm font-mono font-extrabold text-emerald-800 block leading-none">{regPhone}</span>
-                            </div>
-                            <Copy size={16} className="text-emerald-400" />
-                          </div>
-                        )}
-
-                        {/* Email button preview (dynamic) */}
-                        {regEmail && (
-                          <div className="w-full text-left bg-emerald-50/50 border border-emerald-100 p-3.5 rounded-xl transition-all flex items-center justify-between animate-fade-in">
-                            <div className="max-w-[85%]">
-                              <span className="text-[8px] uppercase text-emerald-600 font-bold block mb-0.5 font-sans">Email nhận hóa đơn</span>
-                              <span className="text-xs font-extrabold text-emerald-800 block leading-tight truncate">{regEmail}</span>
-                            </div>
-                            <Copy size={16} className="text-emerald-400" />
-                          </div>
-                        )}
-
-                        {/* Bank Card button preview (conditioned by QR ticket trigger) */}
-                        {showQRInputs && (regBankAccount || regBankOwner) && (
-                          <div className="w-full text-left bg-slate-50 border border-slate-200 p-3.5 rounded-xl transition-all flex items-center justify-between animate-fade-in">
-                            <div className="max-w-[85%]">
-                              <span className="text-[8px] uppercase text-slate-400 font-bold block mb-0.5 font-sans">Số tài khoản thanh toán</span>
-                              <span className="text-sm font-mono font-extrabold text-indigo-600 block">{regBankAccount || "123456789"}</span>
-                              <span className="text-[10px] text-slate-500 uppercase font-bold block leading-none mt-1 font-sans">{regBankOwner || "NGUYEN VAN A"}</span>
-                            </div>
-                            <CreditCard size={16} className="text-slate-400" />
-                          </div>
-                        )}
-
-                      </div>
-
-                      {/* Copy tutorial text removed */}
                     </div>
                   </div>
-                  </div>
-                  </div>
-                  
-
                 </div>
 
                 {/* CREATED LIST (RECENT PAGES) - GEOMETRIC BALANCE (PC Max 4, Mobile Hidden) */}
                 <div className="hidden md:block bg-white p-6 rounded-2xl border border-slate-200 shadow-md">
                   <h4 className="text-xs font-bold text-slate-900 uppercase tracking-widest mb-4 flex items-center gap-1.5 border-b border-slate-100 pb-3">
-                    <Globe size={15} className="text-indigo-600 stroke-[2.5]" /> Các trang mới tạo
+                    <Globe size={15} className="text-indigo-600 stroke-[2.5]" />{" "}
+                    Các trang mới tạo
                   </h4>
-                  
+
                   {filteredCompanies.length === 0 ? (
                     <div className="text-center py-8 border border-dashed border-slate-200 rounded-xl">
-                      <Building2 className="mx-auto text-slate-300 mb-2 animate-bounce" size={24} />
-                      <p className="text-xs font-semibold text-slate-400">Chưa có công ty nào liên kết. Đăng ký ngay!</p>
-                      
+                      <Building2
+                        className="mx-auto text-slate-300 mb-2 animate-bounce"
+                        size={24}
+                      />
+                      <p className="text-xs font-semibold text-slate-400">
+                        Chưa có công ty nào liên kết. Đăng ký ngay!
+                      </p>
+
                       {/* Preset Quick Loader for testing! */}
                       <button
                         type="button"
@@ -2496,7 +2935,10 @@ export default function App() {
                           setRegPrimaryColor(SAMPLE_COMPANY.primaryColor);
                           setRegAdminPassword("123456");
 
-                          showToast("Đã tải dữ liệu mẫu thành công lên form và màn hình xem trước!", "success");
+                          showToast(
+                            "Đã tải dữ liệu mẫu thành công lên form và màn hình xem trước!",
+                            "success",
+                          );
                         }}
                         className="mt-6 inline-flex items-center gap-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-[10px] sm:text-xs uppercase tracking-wider px-5 py-2.5 rounded-lg transition-all"
                       >
@@ -2507,17 +2949,26 @@ export default function App() {
                   ) : (
                     <div className="max-h-64 overflow-y-auto divide-y divide-slate-100 pr-1 space-y-2 no-scrollbar">
                       {filteredCompanies.slice(0, 3).map((c) => (
-                        <div 
-                          key={c.username} 
+                        <div
+                          key={c.username}
                           onClick={() => navigateToSlug(c.username, "view")}
                           className="pt-2.5 pb-2.5 block cursor-pointer group flex items-center justify-between hover:bg-slate-50 p-2.5 rounded transition-all"
                         >
                           <div className="flex items-center gap-3">
                             <div className="w-10 h-10 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-center overflow-hidden shrink-0">
                               {c.logoUrl ? (
-                                <img src={c.logoUrl} alt="Logo" referrerPolicy="no-referrer" className="max-w-full max-h-full object-contain"  crossOrigin="anonymous" />
+                                <img
+                                  src={c.logoUrl}
+                                  alt="Logo"
+                                  referrerPolicy="no-referrer"
+                                  className="max-w-full max-h-full object-contain"
+                                  crossOrigin="anonymous"
+                                />
                               ) : (
-                                <Building2 size={16} className="text-slate-400" />
+                                <Building2
+                                  size={16}
+                                  className="text-slate-400"
+                                />
                               )}
                             </div>
                             <div>
@@ -2529,10 +2980,16 @@ export default function App() {
                               </p>
                             </div>
                           </div>
-                          
+
                           <div className="flex items-center gap-1.5">
-                            <span className="w-3.5 h-3.5 rounded border border-slate-200" style={{ backgroundColor: c.primaryColor }}></span>
-                            <ChevronRight size={14} className="text-slate-350 group-hover:text-slate-800 transition-colors" />
+                            <span
+                              className="w-3.5 h-3.5 rounded border border-slate-200"
+                              style={{ backgroundColor: c.primaryColor }}
+                            ></span>
+                            <ChevronRight
+                              size={14}
+                              className="text-slate-350 group-hover:text-slate-800 transition-colors"
+                            />
                           </div>
                         </div>
                       ))}
@@ -2540,488 +2997,759 @@ export default function App() {
                   )}
                 </div>
               </div>
-
             </div>
           </div>
         )}
 
         {/* ==================== 2. PUBLIC VIEW PAGE ==================== */}
         {route === "view" && activeCompany && (
-          <div className={`w-full bg-slate-100 py-0 md:py-16 px-0 md:px-4 min-h-[100dvh] md:min-h-screen flex items-center justify-center relative ${isCapturing ? "overflow-visible" : "overflow-hidden"}`}>
-
+          <div
+            className={`w-full bg-slate-100 py-0 md:py-16 px-0 md:px-4 min-h-[100dvh] md:min-h-screen flex items-center justify-center relative ${isCapturing ? "overflow-visible" : "overflow-hidden"}`}
+          >
             {/* Dynamic Ambient Logo Background Aesthetic Layer */}
             <div className="absolute inset-0 overflow-hidden pointer-events-none z-0 select-none bg-slate-50">
               {activeCompany.logoUrl ? (
                 <>
                   <div className="absolute top-1/4 left-1/4 w-[120vw] h-[120vh] -translate-x-1/2 -translate-y-1/2 opacity-30 blur-[120px] mix-blend-multiply">
-                    <img src={proxyImageUrl(activeCompany.logoUrl)} className="w-full h-full object-cover" alt=""  crossOrigin="anonymous" referrerPolicy="no-referrer" />
+                    <img
+                      src={proxyImageUrl(activeCompany.logoUrl)}
+                      className="w-full h-full object-cover"
+                      alt=""
+                      crossOrigin="anonymous"
+                      referrerPolicy="no-referrer"
+                    />
                   </div>
                   <div className="absolute bottom-0 right-0 w-[80vw] h-[80vw] translate-x-1/3 translate-y-1/3 opacity-20 blur-[100px] mix-blend-multiply">
-                    <img src={proxyImageUrl(activeCompany.logoUrl)} className="w-full h-full object-cover" alt=""  crossOrigin="anonymous" referrerPolicy="no-referrer" />
+                    <img
+                      src={proxyImageUrl(activeCompany.logoUrl)}
+                      className="w-full h-full object-cover"
+                      alt=""
+                      crossOrigin="anonymous"
+                      referrerPolicy="no-referrer"
+                    />
                   </div>
                 </>
               ) : (
-                <div className="absolute inset-0 opacity-40 blur-[100px]" style={{ 
-                  background: `radial-gradient(circle at 50% 50%, ${activeCompany.primaryColor}40 0%, transparent 60%),
-                               radial-gradient(circle at 80% 20%, ${activeCompany.primaryColor}30 0%, transparent 50%)`
-                }}></div>
+                <div
+                  className={`absolute inset-0 opacity-40 ${isCapturing ? "" : "blur-[100px]"}`}
+                  style={{
+                    background: `radial-gradient(circle at 50% 50%, ${activeCompany.primaryColor}40 0%, transparent 60%),
+                               radial-gradient(circle at 80% 20%, ${activeCompany.primaryColor}30 0%, transparent 50%)`,
+                  }}
+                ></div>
               )}
             </div>
 
             {/* Centered Phone device mockup container (Equal margins on all 4 sides, top uncluttered) */}
-            <div className={`w-full md:max-w-[420px] md:bg-slate-900 rounded-none md:rounded-[45px] shadow-none md:shadow-2xl md:p-[12px] relative flex flex-col z-10 ${isCapturing ? "h-auto min-h-0 overflow-visible [&_*]:transition-none" : "transition-all h-[100dvh] md:h-auto min-h-[100dvh] md:min-h-0 md:h-[min(840px,90vh)] overflow-hidden"}`} style={{ transform: "translate3d(0, 0, 0)", isolation: "isolate" }}>
+            <div
+              className={`w-full md:max-w-[420px] md:bg-slate-900 rounded-none md:rounded-[45px] shadow-none md:shadow-2xl md:p-[12px] relative flex flex-col z-10 ${isCapturing ? "h-auto min-h-0 overflow-visible [&_*]:transition-none" : "transition-all h-[100dvh] md:h-auto min-h-[100dvh] md:min-h-0 md:h-[min(840px,90vh)] overflow-hidden"}`}
+              style={{
+                transform: "translate3d(0, 0, 0)",
+                isolation: "isolate",
+              }}
+            >
               {/* Perfect outer clipping layer */}
-              <div className={`w-full flex flex-col relative ${isCapturing ? "h-auto min-h-0 overflow-visible bg-slate-50/95 backdrop-blur-2xl rounded-[33px]" : "h-full min-h-[100dvh] md:min-h-0 bg-slate-50/95 backdrop-blur-2xl rounded-none md:rounded-[33px] overflow-hidden flex-1"}`} style={{ transform: "translate3d(0, 0, 0)", isolation: "isolate" }}>
-                
+              <div
+                className={`w-full flex flex-col relative ${isCapturing ? "h-auto min-h-0 overflow-visible bg-slate-50/95 backdrop-blur-2xl rounded-[33px]" : "h-full min-h-[100dvh] md:min-h-0 bg-slate-50/95 backdrop-blur-2xl rounded-none md:rounded-[33px] overflow-hidden flex-1"}`}
+                style={{
+                  transform: "translate3d(0, 0, 0)",
+                  isolation: "isolate",
+                }}
+              >
                 {/* BRAND BACKGROUND INSIDE DEVICE (Moved out of scrolling container to remain fixed) */}
                 {activeCompany.logoUrl && (
                   <div className="absolute inset-0 z-0 pointer-events-none select-none opacity-15 mix-blend-multiply flex items-center justify-center overflow-hidden rounded-none md:rounded-[33px]">
-                    <img 
-                      src={proxyImageUrl(activeCompany.logoUrl)} 
-                      alt="" 
-                      className="w-[150%] h-[150%] object-cover blur-[8px]" 
+                    <img
+                      src={proxyImageUrl(activeCompany.logoUrl)}
+                      alt=""
+                      className={`w-[150%] h-[150%] object-cover ${isCapturing ? "" : "blur-[8px]"}`}
                     />
                   </div>
                 )}
 
-                <div className={`w-full rounded-none md:rounded-[33px] relative flex flex-col custom-scrollbar z-10 ${isCapturing ? "h-auto min-h-0 overflow-visible flex-none" : "overflow-x-hidden h-full min-h-full overflow-y-auto flex-1"}`}>
-
-              <div 
-                id="invoice-card-to-capture" 
-                className={`relative z-10 flex flex-col ${
-                  isCapturing 
-                    ? "bg-slate-50 h-auto min-h-0 w-[390px] mx-auto rounded-[33px] flex-none shadow-none border border-slate-200/60 pb-0 overflow-hidden" 
-                    : "w-full rounded-none md:rounded-[33px] grow min-h-full pb-0 bg-transparent"
-                }`}
-              >
-                
-                {/* Beautiful dynamic ambient background layer inside the card capture container so it is captured in screenshots */}
-                <div className={`absolute inset-0 pointer-events-none z-0 select-none bg-slate-50 ${isCapturing ? "block" : "hidden"}`}>
-                  {activeCompany.logoUrl ? (
-                    <>
-                      {/* Blurred logo aesthetic bubbles */}
-                      <div className="absolute top-1/4 left-1/4 w-[120%] h-[120%] -translate-x-1/2 -translate-y-1/2 opacity-[0.15] blur-3xl">
-                        <img src={proxyImageUrl(activeCompany.logoUrl)} className="w-full h-full object-cover" alt="" referrerPolicy="no-referrer" crossOrigin="anonymous" />
-                      </div>
-                      <div className="absolute bottom-0 right-0 w-[80%] h-[80%] translate-x-1/3 translate-y-1/3 opacity-[0.12] blur-3xl">
-                        <img src={proxyImageUrl(activeCompany.logoUrl)} className="w-full h-full object-cover" alt="" referrerPolicy="no-referrer" crossOrigin="anonymous" />
-                      </div>
-                    </>
-                  ) : (
-                    <div className="absolute inset-0 opacity-40 blur-[100px]" style={{ 
-                      background: `radial-gradient(circle at 50% 50%, ${activeCompany.primaryColor}40 0%, transparent 60%),
-                                   radial-gradient(circle at 80% 20%, ${activeCompany.primaryColor}30 0%, transparent 50%)`
-                    }}></div>
-                  )}
-
-                  {/* Brand logo overlay blend inside the card */}
-                  {activeCompany.logoUrl && (
-                    <div className="absolute inset-0 z-0 pointer-events-none select-none opacity-10 flex items-center justify-center overflow-hidden rounded-none md:rounded-[33px]">
-                      <img 
-                        src={proxyImageUrl(activeCompany.logoUrl)} 
-                        alt="" 
-                        crossOrigin="anonymous"
-                        referrerPolicy="no-referrer"
-                        className="w-[150%] h-[150%] object-cover blur-[8px]" 
-                      />
-                    </div>
-                  )}
-                </div>
-                
-                {/* Profile Card Header */}
-                <div className={`relative overflow-hidden px-6 pt-6 pb-5 flex flex-col items-center border-b border-slate-200/50 rounded-t-none md:rounded-t-[33px] shrink-0 z-10 ${isCapturing ? "bg-white/75" : "bg-white/70 backdrop-blur-md"}`}>
-                  {activeCompany.logoUrl && (
-                    <div 
-                      className="absolute inset-0 opacity-[0.10] bg-center bg-cover scale-125 blur-[4px] pointer-events-none" 
-                      style={{ backgroundImage: `url(${proxyImageUrl(activeCompany.logoUrl)})` }}
-                    />
-                  )}
-                  <div className="relative z-10 flex flex-col items-center w-full">
-                    {/* Logo centered */}
-                    {activeCompany.logoUrl ? (
-                      <div className={`w-20 h-20 rounded-2xl border border-slate-200 flex items-center justify-center p-3 mb-2.5 shrink-0 shadow-sm relative group ${isCapturing ? "bg-white" : "bg-white/90"}`}>
-                        <img src={proxyImageUrl(activeCompany.logoUrl)} alt="Company Logo" crossOrigin="anonymous" referrerPolicy="no-referrer" className={`max-w-full max-h-full object-contain ${isCapturing ? "" : "mix-blend-multiply"}`} />
-                      </div>
-                    ) : null}
-
-                    <div className="text-[9.5px] sm:text-[10.5px] font-bold tracking-widest text-[#505a73] opacity-80 uppercase mt-1 mb-1 shrink-0">
-                      {t("Thông tin xuất hóa đơn", "Invoice Information")}
-                    </div>
-
-                    <h3 className="text-center font-black text-slate-900 text-[13.5px] sm:text-base md:text-md uppercase tracking-normal leading-relaxed break-words px-1 mt-1">
-                      {activeCompany.companyName}
-                    </h3>
-                  </div>
-                </div>
-
-              {/* public invoice items catalog/grid */}
-              <div className="p-6 space-y-4">
-                
-                {/* 1. MST Bento Card */}
-                <div 
-                  onClick={() => copyToClipboard(activeCompany.taxCode, "Mã số thuế (MST)")}
-                  className={`p-3.5 rounded-xl border-2 cursor-pointer select-none group relative flex items-center justify-between transition-all duration-200 z-10 ${
-                    copiedField === "Mã số thuế (MST)" 
-                      ? "border-slate-900 bg-slate-950 text-white transform scale-[0.98]" 
-                      : isCapturing
-                        ? "bg-white/80 border-slate-200/80 shadow-sm"
-                        : "bg-white/60 backdrop-blur-md border-white/80 shadow-sm hover:bg-white hover:border-slate-300 hover:shadow"
-                  }`}
+                <div
+                  className={`w-full rounded-none md:rounded-[33px] relative flex flex-col custom-scrollbar z-10 ${isCapturing ? "h-auto min-h-0 overflow-visible flex-none" : "overflow-x-hidden h-full min-h-full overflow-y-auto flex-1"}`}
                 >
-                  <div className="flex items-center gap-3">
-                    <div 
-                      className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 border border-slate-200 text-slate-500 bg-white"
-                      style={copiedField === "Mã số thuế (MST)" ? { backgroundColor: activeCompany.primaryColor, color: "#fff", borderColor: activeCompany.primaryColor } : {}}
+                  <div
+                    id="invoice-card-to-capture"
+                    className={`relative z-10 flex flex-col ${
+                      isCapturing
+                        ? "bg-slate-50 h-[auto] min-h-[0] w-[390px] min-w-[390px] max-w-[390px] mx-auto rounded-[0px] flex-none shadow-none border-0 pb-0 overflow-hidden"
+                        : "w-full rounded-none md:rounded-[33px] grow min-h-full pb-0 bg-transparent"
+                    }`}
+                  >
+                    {/* Beautiful dynamic ambient background layer inside the card capture container so it is captured in screenshots */}
+                    <div
+                      className={`absolute inset-0 pointer-events-none z-0 select-none bg-slate-50 ${isCapturing ? "block" : "hidden"}`}
                     >
-                      <Hash size={16} className="stroke-[2.5]" />
-                    </div>
-                    <div>
-                      <p className={`text-[8.5px] font-extrabold uppercase tracking-widest ${copiedField === "Mã số thuế (MST)" ? "text-slate-300" : "text-slate-400"}`}>
-                        {t("Mã số thuế", "Tax Code")}
-                      </p>
-                      <p className="font-mono text-base font-extrabold tracking-wider leading-none mt-1">
-                        {activeCompany.taxCode}
-                      </p>
-                    </div>
-                  </div>
-                  
-                  {!isCapturing && (
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      {copiedField === "Mã số thuế (MST)" ? (
-                        <span className="text-[10px] font-bold text-white uppercase flex items-center gap-0.5" style={{ color: activeCompany.primaryColor }}><Check size={12}/> Đã copy!</span>
+                      {activeCompany.logoUrl ? (
+                        <>
+                          {/* Blurred logo aesthetic bubbles */}
+                          <div className="absolute top-1/4 left-1/4 w-[120%] h-[120%] -translate-x-1/2 -translate-y-1/2 opacity-[0.15] blur-3xl">
+                            <img
+                              src={proxyImageUrl(activeCompany.logoUrl)}
+                              className="w-full h-full object-cover"
+                              alt=""
+                              referrerPolicy="no-referrer"
+                              crossOrigin="anonymous"
+                            />
+                          </div>
+                          <div className="absolute bottom-0 right-0 w-[80%] h-[80%] translate-x-1/3 translate-y-1/3 opacity-[0.12] blur-3xl">
+                            <img
+                              src={proxyImageUrl(activeCompany.logoUrl)}
+                              className="w-full h-full object-cover"
+                              alt=""
+                              referrerPolicy="no-referrer"
+                              crossOrigin="anonymous"
+                            />
+                          </div>
+                        </>
                       ) : (
-                        <span className="text-slate-400 group-hover:text-slate-900 flex items-center">
-                          <Copy size={14} />
-                        </span>
+                        <div
+                          className="absolute inset-0 opacity-40 blur-[100px]"
+                          style={{
+                            background: `radial-gradient(circle at 50% 50%, ${activeCompany.primaryColor}40 0%, transparent 60%),
+                                   radial-gradient(circle at 80% 20%, ${activeCompany.primaryColor}30 0%, transparent 50%)`,
+                          }}
+                        ></div>
                       )}
-                    </div>
-                  )}
-                </div>
 
-                {/* 2. TEN DAY DU */}
-                <div 
-                  onClick={() => copyToClipboard(activeCompany.companyName, "Tên đầy đủ công ty")}
-                  className={`p-3.5 rounded-xl border-2 cursor-pointer select-none group relative flex items-center justify-between transition-all duration-200 z-10 ${
-                    copiedField === "Tên đầy đủ công ty" 
-                      ? "border-slate-900 bg-slate-950 text-white transform scale-[0.98]" 
-                      : isCapturing
-                        ? "bg-white/80 border-slate-200/80 shadow-sm"
-                        : "bg-white/60 backdrop-blur-md border-white/80 shadow-sm hover:bg-white hover:border-slate-300 hover:shadow"
-                  }`}
-                >
-                  <div className="flex items-center gap-3 pr-2">
-                    <div 
-                      className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 border border-slate-200 text-slate-500 bg-white"
-                      style={copiedField === "Tên đầy đủ công ty" ? { backgroundColor: activeCompany.primaryColor, color: "#fff", borderColor: activeCompany.primaryColor } : {}}
-                    >
-                      <Building2 size={16} className="stroke-[2.5]" />
-                    </div>
-                    <div>
-                      <p className={`text-[8.5px] font-extrabold uppercase tracking-widest ${copiedField === "Tên đầy đủ công ty" ? "text-slate-300" : "text-slate-400"}`}>
-                        {t("Tên đầy đủ công ty", "Full Company Name")}
-                      </p>
-                      <p className={`text-xs font-extrabold leading-tight mt-1 uppercase ${copiedField === "Tên đầy đủ công ty" ? "text-white" : "text-slate-850"}`}>
-                        {activeCompany.companyName}
-                      </p>
-                    </div>
-                  </div>
-                  
-                  {!isCapturing && (
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      {copiedField === "Tên đầy đủ công ty" ? (
-                        <span className="text-[10px] font-bold uppercase flex items-center gap-0.5" style={{ color: activeCompany.primaryColor }}><Check size={12}/> Đã copy!</span>
-                      ) : (
-                        <span className="text-slate-400 group-hover:text-slate-900 flex items-center">
-                          <Copy size={14} />
-                        </span>
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                {/* 3. DIA CHI TRU SO */}
-                <div 
-                  onClick={() => copyToClipboard(activeCompany.address, "Địa chỉ xuất hóa đơn")}
-                  className={`p-3.5 rounded-xl border-2 cursor-pointer select-none group relative flex items-center justify-between transition-all duration-200 z-10 ${
-                    copiedField === "Địa chỉ xuất hóa đơn" 
-                      ? "border-slate-900 bg-slate-950 text-white transform scale-[0.98]" 
-                      : isCapturing
-                        ? "bg-white/80 border-slate-200/80 shadow-sm"
-                        : "bg-white/60 backdrop-blur-md border-white/80 shadow-sm hover:bg-white hover:border-slate-300 hover:shadow"
-                  }`}
-                >
-                  <div className="flex items-center gap-3 pr-2">
-                    <div 
-                      className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 border border-slate-200 text-slate-500 bg-white"
-                      style={copiedField === "Địa chỉ xuất hóa đơn" ? { backgroundColor: activeCompany.primaryColor, color: "#fff", borderColor: activeCompany.primaryColor } : {}}
-                    >
-                      <MapPin size={16} className="stroke-[2.5]" />
-                    </div>
-                    <div>
-                      <p className={`text-[8.5px] font-extrabold uppercase tracking-widest ${copiedField === "Địa chỉ xuất hóa đơn" ? "text-slate-300" : "text-slate-400"}`}>
-                        {t("Địa chỉ kinh doanh", "Registered Business Address")}
-                      </p>
-                      <p className={`text-[11px] font-bold leading-relaxed mt-0.5 ${copiedField === "Địa chỉ xuất hóa đơn" ? "text-white" : "text-slate-750 group-hover:text-slate-950"}`}>
-                        {activeCompany.address}
-                      </p>
-                    </div>
-                  </div>
-                  
-                  {!isCapturing && (
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      {copiedField === "Địa chỉ xuất hóa đơn" ? (
-                        <span className="text-[10px] font-bold uppercase flex items-center gap-0.5" style={{ color: activeCompany.primaryColor }}><Check size={12}/> Đã copy!</span>
-                      ) : (
-                        <span className="text-slate-400 group-hover:text-slate-900 flex items-center">
-                          <Copy size={14} />
-                        </span>
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                {/* Separate layout for Email/Phone: 2 separate lines to prevent truncation */}
-                <div className="flex flex-col gap-3">
-                  {/* Email */}
-                  {activeCompany.email && (
-                    <div 
-                      onClick={() => copyToClipboard(activeCompany.email, "Email nhận hóa đơn")}
-                      className={`p-3.5 rounded-xl border-2 cursor-pointer select-none group relative flex items-center justify-between transition-all duration-200 z-10 ${
-                        copiedField === "Email nhận hóa đơn" 
-                          ? "border-slate-900 bg-slate-950 text-white" 
-                          : isCapturing
-                            ? "bg-white/80 border-slate-200/80 shadow-sm"
-                            : "bg-white/60 backdrop-blur-md border-white/80 shadow-sm hover:bg-white hover:border-slate-300 hover:shadow"
-                      }`}
-                    >
-                      <div className="flex items-center gap-3 pr-2 w-full min-w-0">
-                        <div 
-                          className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 border border-slate-200 text-slate-500 bg-white"
-                          style={copiedField === "Email nhận hóa đơn" ? { backgroundColor: activeCompany.primaryColor, color: "#fff", borderColor: activeCompany.primaryColor } : {}}
-                        >
-                          <Mail size={16} className="stroke-[2.5]" />
+                      {/* Brand logo overlay blend inside the card */}
+                      {activeCompany.logoUrl && (
+                        <div className="absolute inset-0 z-0 pointer-events-none select-none opacity-10 flex items-center justify-center overflow-hidden rounded-none md:rounded-[33px]">
+                          <img
+                            src={proxyImageUrl(activeCompany.logoUrl)}
+                            alt=""
+                            crossOrigin="anonymous"
+                            referrerPolicy="no-referrer"
+                            className="w-[150%] h-[150%] object-cover blur-[8px]"
+                          />
                         </div>
-                        <div className="truncate min-w-0 flex-1">
-                          <p className={`text-[8.5px] font-extrabold uppercase tracking-widest ${copiedField === "Email nhận hóa đơn" ? "text-slate-300" : "text-slate-400"}`}>
-                            {t("Email nhận hóa đơn", "Invoice Email")}
-                          </p>
-                          <p className={`text-sm font-bold mt-1 break-all truncate ${copiedField === "Email nhận hóa đơn" ? "text-white" : "text-slate-800"}`}>
-                            {activeCompany.email}
-                          </p>
+                      )}
+                    </div>
+
+                    {/* Profile Card Header */}
+                    <div
+                      className={`relative overflow-hidden px-6 pt-6 pb-5 flex flex-col items-center border-b border-slate-200/50 rounded-t-none md:rounded-t-[33px] shrink-0 z-10 ${isCapturing ? "bg-white/75" : "bg-white/70 backdrop-blur-md"}`}
+                    >
+                      {activeCompany.logoUrl && !isCapturing && (
+                        <div
+                          className={`absolute inset-0 opacity-[0.10] bg-center bg-cover scale-125 pointer-events-none ${isCapturing ? "" : "blur-[4px]"}`}
+                          style={{
+                            backgroundImage: `url(${proxyImageUrl(activeCompany.logoUrl)})`,
+                          }}
+                        />
+                      )}
+                      <div className="relative z-10 flex flex-col items-center w-full">
+                        {/* Logo centered */}
+                        {activeCompany.logoUrl ? (
+                          <div
+                            className={`w-20 h-20 rounded-2xl border border-slate-200 flex items-center justify-center p-3 mb-2.5 shrink-0 shadow-sm relative group ${isCapturing ? "bg-white" : "bg-white/90"}`}
+                          >
+                            <img
+                              src={proxyImageUrl(activeCompany.logoUrl)}
+                              alt="Company Logo"
+                              crossOrigin="anonymous"
+                              referrerPolicy="no-referrer"
+                              className={`max-w-full max-h-full object-contain ${isCapturing ? "" : "mix-blend-multiply"}`}
+                            />
+                          </div>
+                        ) : null}
+
+                        <div className="text-[9.5px] sm:text-[10.5px] font-bold tracking-widest text-[#505a73] opacity-80 uppercase mt-1 mb-1 shrink-0">
+                          {t("Thông tin xuất hóa đơn", "Invoice Information")}
                         </div>
+
+                        <h3 className="text-center font-black text-slate-900 text-[13.5px] sm:text-base md:text-md uppercase tracking-normal leading-relaxed break-words px-1 mt-1">
+                          {activeCompany.companyName}
+                        </h3>
                       </div>
-                      
+                    </div>
+
+                    {/* public invoice items catalog/grid */}
+                    <div className="p-6 space-y-4">
+                      {/* 1. MST Bento Card */}
+                      <div
+                        onClick={() =>
+                          copyToClipboard(
+                            activeCompany.taxCode,
+                            "Mã số thuế (MST)",
+                          )
+                        }
+                        className={`p-3.5 rounded-xl border-2 cursor-pointer select-none group relative flex items-center justify-between transition-all duration-200 z-10 ${
+                          copiedField === "Mã số thuế (MST)"
+                            ? "border-slate-900 bg-slate-950 text-white transform scale-[0.98]"
+                            : isCapturing
+                              ? "bg-white/80 border-slate-200/80 shadow-sm"
+                              : "bg-white/60 backdrop-blur-md border-white/80 shadow-sm hover:bg-white hover:border-slate-300 hover:shadow"
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div
+                            className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 border border-slate-200 text-slate-500 bg-white"
+                            style={
+                              copiedField === "Mã số thuế (MST)"
+                                ? {
+                                    backgroundColor: activeCompany.primaryColor,
+                                    color: "#fff",
+                                    borderColor: activeCompany.primaryColor,
+                                  }
+                                : {}
+                            }
+                          >
+                            <Hash size={16} className="stroke-[2.5]" />
+                          </div>
+                          <div>
+                            <p
+                              className={`text-[8.5px] font-extrabold uppercase tracking-widest ${copiedField === "Mã số thuế (MST)" ? "text-slate-300" : "text-slate-400"}`}
+                            >
+                              {t("Mã số thuế", "Tax Code")}
+                            </p>
+                            <p className="font-mono text-base font-extrabold tracking-wider leading-none mt-1">
+                              {activeCompany.taxCode}
+                            </p>
+                          </div>
+                        </div>
+
+                        {!isCapturing && (
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            {copiedField === "Mã số thuế (MST)" ? (
+                              <span
+                                className="text-[10px] font-bold text-white uppercase flex items-center gap-0.5"
+                                style={{ color: activeCompany.primaryColor }}
+                              >
+                                <Check size={12} /> Đã copy!
+                              </span>
+                            ) : (
+                              <span className="text-slate-400 group-hover:text-slate-900 flex items-center">
+                                <Copy size={14} />
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* 2. TEN DAY DU */}
+                      <div
+                        onClick={() =>
+                          copyToClipboard(
+                            activeCompany.companyName,
+                            "Tên đầy đủ công ty",
+                          )
+                        }
+                        className={`p-3.5 rounded-xl border-2 cursor-pointer select-none group relative flex items-center justify-between transition-all duration-200 z-10 ${
+                          copiedField === "Tên đầy đủ công ty"
+                            ? "border-slate-900 bg-slate-950 text-white transform scale-[0.98]"
+                            : isCapturing
+                              ? "bg-white/80 border-slate-200/80 shadow-sm"
+                              : "bg-white/60 backdrop-blur-md border-white/80 shadow-sm hover:bg-white hover:border-slate-300 hover:shadow"
+                        }`}
+                      >
+                        <div className="flex items-center gap-3 pr-2">
+                          <div
+                            className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 border border-slate-200 text-slate-500 bg-white"
+                            style={
+                              copiedField === "Tên đầy đủ công ty"
+                                ? {
+                                    backgroundColor: activeCompany.primaryColor,
+                                    color: "#fff",
+                                    borderColor: activeCompany.primaryColor,
+                                  }
+                                : {}
+                            }
+                          >
+                            <Building2 size={16} className="stroke-[2.5]" />
+                          </div>
+                          <div>
+                            <p
+                              className={`text-[8.5px] font-extrabold uppercase tracking-widest ${copiedField === "Tên đầy đủ công ty" ? "text-slate-300" : "text-slate-400"}`}
+                            >
+                              {t("Tên đầy đủ công ty", "Full Company Name")}
+                            </p>
+                            <p
+                              className={`text-xs font-extrabold leading-tight mt-1 uppercase ${copiedField === "Tên đầy đủ công ty" ? "text-white" : "text-slate-850"}`}
+                            >
+                              {activeCompany.companyName}
+                            </p>
+                          </div>
+                        </div>
+
+                        {!isCapturing && (
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            {copiedField === "Tên đầy đủ công ty" ? (
+                              <span
+                                className="text-[10px] font-bold uppercase flex items-center gap-0.5"
+                                style={{ color: activeCompany.primaryColor }}
+                              >
+                                <Check size={12} /> Đã copy!
+                              </span>
+                            ) : (
+                              <span className="text-slate-400 group-hover:text-slate-900 flex items-center">
+                                <Copy size={14} />
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* 3. DIA CHI TRU SO */}
+                      <div
+                        onClick={() =>
+                          copyToClipboard(
+                            activeCompany.address,
+                            "Địa chỉ xuất hóa đơn",
+                          )
+                        }
+                        className={`p-3.5 rounded-xl border-2 cursor-pointer select-none group relative flex items-center justify-between transition-all duration-200 z-10 ${
+                          copiedField === "Địa chỉ xuất hóa đơn"
+                            ? "border-slate-900 bg-slate-950 text-white transform scale-[0.98]"
+                            : isCapturing
+                              ? "bg-white/80 border-slate-200/80 shadow-sm"
+                              : "bg-white/60 backdrop-blur-md border-white/80 shadow-sm hover:bg-white hover:border-slate-300 hover:shadow"
+                        }`}
+                      >
+                        <div className="flex items-center gap-3 pr-2">
+                          <div
+                            className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 border border-slate-200 text-slate-500 bg-white"
+                            style={
+                              copiedField === "Địa chỉ xuất hóa đơn"
+                                ? {
+                                    backgroundColor: activeCompany.primaryColor,
+                                    color: "#fff",
+                                    borderColor: activeCompany.primaryColor,
+                                  }
+                                : {}
+                            }
+                          >
+                            <MapPin size={16} className="stroke-[2.5]" />
+                          </div>
+                          <div>
+                            <p
+                              className={`text-[8.5px] font-extrabold uppercase tracking-widest ${copiedField === "Địa chỉ xuất hóa đơn" ? "text-slate-300" : "text-slate-400"}`}
+                            >
+                              {t(
+                                "Địa chỉ kinh doanh",
+                                "Registered Business Address",
+                              )}
+                            </p>
+                            <p
+                              className={`text-[11px] font-bold leading-relaxed mt-0.5 ${copiedField === "Địa chỉ xuất hóa đơn" ? "text-white" : "text-slate-750 group-hover:text-slate-950"}`}
+                            >
+                              {activeCompany.address}
+                            </p>
+                          </div>
+                        </div>
+
+                        {!isCapturing && (
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            {copiedField === "Địa chỉ xuất hóa đơn" ? (
+                              <span
+                                className="text-[10px] font-bold uppercase flex items-center gap-0.5"
+                                style={{ color: activeCompany.primaryColor }}
+                              >
+                                <Check size={12} /> Đã copy!
+                              </span>
+                            ) : (
+                              <span className="text-slate-400 group-hover:text-slate-900 flex items-center">
+                                <Copy size={14} />
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Separate layout for Email/Phone: 2 separate lines to prevent truncation */}
+                      <div className="flex flex-col gap-3">
+                        {/* Email */}
+                        {activeCompany.email && (
+                          <div
+                            onClick={() =>
+                              copyToClipboard(
+                                activeCompany.email,
+                                "Email nhận hóa đơn",
+                              )
+                            }
+                            className={`p-3.5 rounded-xl border-2 cursor-pointer select-none group relative flex items-center justify-between transition-all duration-200 z-10 ${
+                              copiedField === "Email nhận hóa đơn"
+                                ? "border-slate-900 bg-slate-950 text-white"
+                                : isCapturing
+                                  ? "bg-white/80 border-slate-200/80 shadow-sm"
+                                  : "bg-white/60 backdrop-blur-md border-white/80 shadow-sm hover:bg-white hover:border-slate-300 hover:shadow"
+                            }`}
+                          >
+                            <div className="flex items-center gap-3 pr-2 w-full min-w-0">
+                              <div
+                                className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 border border-slate-200 text-slate-500 bg-white"
+                                style={
+                                  copiedField === "Email nhận hóa đơn"
+                                    ? {
+                                        backgroundColor:
+                                          activeCompany.primaryColor,
+                                        color: "#fff",
+                                        borderColor: activeCompany.primaryColor,
+                                      }
+                                    : {}
+                                }
+                              >
+                                <Mail size={16} className="stroke-[2.5]" />
+                              </div>
+                              <div className="truncate min-w-0 flex-1">
+                                <p
+                                  className={`text-[8.5px] font-extrabold uppercase tracking-widest ${copiedField === "Email nhận hóa đơn" ? "text-slate-300" : "text-slate-400"}`}
+                                >
+                                  {t("Email nhận hóa đơn", "Invoice Email")}
+                                </p>
+                                <p
+                                  className={`text-sm font-bold mt-1 break-all truncate ${copiedField === "Email nhận hóa đơn" ? "text-white" : "text-slate-800"}`}
+                                >
+                                  {activeCompany.email}
+                                </p>
+                              </div>
+                            </div>
+
+                            {!isCapturing && (
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                {copiedField === "Email nhận hóa đơn" ? (
+                                  <span
+                                    className="text-[10px] font-bold text-white uppercase flex items-center gap-0.5"
+                                    style={{
+                                      color: activeCompany.primaryColor,
+                                    }}
+                                  >
+                                    <Check size={12} /> Đã copy!
+                                  </span>
+                                ) : (
+                                  <span className="text-slate-400 group-hover:text-slate-900 flex items-center">
+                                    <Copy size={14} />
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Phone */}
+                        {activeCompany.phone && (
+                          <div
+                            onClick={() =>
+                              copyToClipboard(
+                                activeCompany.phone,
+                                "Số điện thoại",
+                              )
+                            }
+                            className={`p-3.5 rounded-xl border-2 cursor-pointer select-none group relative flex items-center justify-between transition-all duration-200 z-10 ${
+                              copiedField === "Số điện thoại"
+                                ? "border-slate-900 bg-slate-950 text-white"
+                                : isCapturing
+                                  ? "bg-white/80 border-slate-200/80 shadow-sm"
+                                  : "bg-white/60 backdrop-blur-md border-white/80 shadow-sm hover:bg-white hover:border-slate-300 hover:shadow"
+                            }`}
+                          >
+                            <div className="flex items-center gap-3 pr-2 w-full min-w-0">
+                              <div
+                                className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 border border-slate-200 text-slate-500 bg-white"
+                                style={
+                                  copiedField === "Số điện thoại"
+                                    ? {
+                                        backgroundColor:
+                                          activeCompany.primaryColor,
+                                        color: "#fff",
+                                        borderColor: activeCompany.primaryColor,
+                                      }
+                                    : {}
+                                }
+                              >
+                                <Phone size={16} className="stroke-[2.5]" />
+                              </div>
+                              <div className="truncate min-w-0 flex-1">
+                                <p
+                                  className={`text-[8.5px] font-extrabold uppercase tracking-widest ${copiedField === "Số điện thoại" ? "text-slate-300" : "text-slate-400"}`}
+                                >
+                                  {t("Số điện thoại liên hệ", "Contact Phone")}
+                                </p>
+                                <p
+                                  className={`text-sm font-mono font-bold mt-1 ${copiedField === "Số điện thoại" ? "text-white" : "text-slate-850"}`}
+                                >
+                                  {activeCompany.phone}
+                                </p>
+                              </div>
+                            </div>
+
+                            {!isCapturing && (
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                {copiedField === "Số điện thoại" ? (
+                                  <span
+                                    className="text-[10px] font-bold text-white uppercase flex items-center gap-0.5"
+                                    style={{
+                                      color: activeCompany.primaryColor,
+                                    }}
+                                  >
+                                    <Check size={12} /> Đã copy!
+                                  </span>
+                                ) : (
+                                  <span className="text-slate-400 group-hover:text-slate-900 flex items-center">
+                                    <Copy size={14} />
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Actions Grid: Lưu Text & Lưu Ảnh */}
                       {!isCapturing && (
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          {copiedField === "Email nhận hóa đơn" ? (
-                            <span className="text-[10px] font-bold text-white uppercase flex items-center gap-0.5" style={{ color: activeCompany.primaryColor }}><Check size={12}/> Đã copy!</span>
-                          ) : (
-                            <span className="text-slate-400 group-hover:text-slate-900 flex items-center">
-                              <Copy size={14} />
-                            </span>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Phone */}
-                  {activeCompany.phone && (
-                    <div 
-                      onClick={() => copyToClipboard(activeCompany.phone, "Số điện thoại")}
-                      className={`p-3.5 rounded-xl border-2 cursor-pointer select-none group relative flex items-center justify-between transition-all duration-200 z-10 ${
-                        copiedField === "Số điện thoại" 
-                          ? "border-slate-900 bg-slate-950 text-white" 
-                          : isCapturing
-                            ? "bg-white/80 border-slate-200/80 shadow-sm"
-                            : "bg-white/60 backdrop-blur-md border-white/80 shadow-sm hover:bg-white hover:border-slate-300 hover:shadow"
-                      }`}
-                    >
-                      <div className="flex items-center gap-3 pr-2 w-full min-w-0">
-                        <div 
-                          className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 border border-slate-200 text-slate-500 bg-white"
-                          style={copiedField === "Số điện thoại" ? { backgroundColor: activeCompany.primaryColor, color: "#fff", borderColor: activeCompany.primaryColor } : {}}
-                        >
-                          <Phone size={16} className="stroke-[2.5]" />
-                        </div>
-                        <div className="truncate min-w-0 flex-1">
-                          <p className={`text-[8.5px] font-extrabold uppercase tracking-widest ${copiedField === "Số điện thoại" ? "text-slate-300" : "text-slate-400"}`}>
-                            {t("Số điện thoại liên hệ", "Contact Phone")}
-                          </p>
-                          <p className={`text-sm font-mono font-bold mt-1 ${copiedField === "Số điện thoại" ? "text-white" : "text-slate-850"}`}>
-                            {activeCompany.phone}
-                          </p>
-                        </div>
-                      </div>
-                      
-                      {!isCapturing && (
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          {copiedField === "Số điện thoại" ? (
-                            <span className="text-[10px] font-bold text-white uppercase flex items-center gap-0.5" style={{ color: activeCompany.primaryColor }}><Check size={12}/> Đã copy!</span>
-                          ) : (
-                            <span className="text-slate-400 group-hover:text-slate-900 flex items-center">
-                              <Copy size={14} />
-                            </span>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                {/* Actions Grid: Lưu Text & Lưu Ảnh */}
-                {!isCapturing && (
-                  <div className="grid grid-cols-2 gap-3 px-6 pb-1 no-capture">
-                    {/* Button 1: Sao chép Toàn bộ Text */}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const bankObj = VIETNAMESE_BANKS.find(b => b.id === activeCompany.bankName);
-                        const bankDisplayName = bankObj ? (bankObj.shortName || bankObj.name) : (activeCompany.bankName || "");
-                        const textToCopy = `Tên công ty: ${activeCompany.companyName || ""}
+                        <div className="grid grid-cols-2 gap-3 px-6 pb-1 no-capture">
+                          {/* Button 1: Sao chép Toàn bộ Text */}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const bankObj = VIETNAMESE_BANKS.find(
+                                (b) => b.id === activeCompany.bankName,
+                              );
+                              const bankDisplayName = bankObj
+                                ? bankObj.shortName || bankObj.name
+                                : activeCompany.bankName || "";
+                              const textToCopy = `Tên công ty: ${activeCompany.companyName || ""}
 Mã số thuế: ${activeCompany.taxCode || ""}
 Địa chỉ: ${activeCompany.address || ""}
 Số điện thoại: ${activeCompany.phone || ""}
 Email nhận hóa đơn: ${activeCompany.email || ""}${activeCompany.bankAccount ? `\nSố tài khoản: ${activeCompany.bankAccount}` : ""}${activeCompany.bankOwner ? `\nTên tài khoản: ${activeCompany.bankOwner.toUpperCase()}` : ""}${bankDisplayName ? `\nNgân hàng: ${bankDisplayName}` : ""}`;
-                        
-                        copyToClipboard(textToCopy, "Toàn bộ thông tin dạng Text");
-                      }}
-                      className="py-3 px-3 rounded-xl border border-indigo-200 bg-indigo-50/40 hover:bg-slate-900 hover:text-white hover:border-slate-900 hover:shadow-md transition-all flex items-center justify-center gap-1.5 text-xs text-indigo-700 font-extrabold cursor-pointer select-none active:scale-[0.98] shadow-sm uppercase tracking-wide shrink-0"
-                    >
-                      <Copy size={13} className="stroke-[2.5]" />
-                      <span>{t("Lưu Text", "Save Text")}</span>
-                    </button>
 
-                    {/* Button 2: Lưu Ảnh (Chụp màn hình thẻ thông tin) */}
-                    <button
-                      type="button"
-                      onClick={handleCaptureImage}
-                      className="py-3 px-3 rounded-xl border border-emerald-200 bg-emerald-50/40 hover:bg-slate-900 hover:text-white hover:border-slate-900 hover:shadow-md transition-all flex items-center justify-center gap-1.5 text-xs text-emerald-700 font-extrabold cursor-pointer select-none active:scale-[0.98] shadow-sm uppercase tracking-wide shrink-0"
-                    >
-                      <Download size={13} className="stroke-[2.5]" />
-                      <span>{t("Lưu Ảnh", "Save Image")}</span>
-                    </button>
-                  </div>
-                )}
+                              copyToClipboard(
+                                textToCopy,
+                                "Toàn bộ thông tin dạng Text",
+                              );
+                            }}
+                            className="py-3 px-3 rounded-xl border border-indigo-200 bg-indigo-50/40 hover:bg-slate-900 hover:text-white hover:border-slate-900 hover:shadow-md transition-all flex items-center justify-center gap-1.5 text-xs text-indigo-700 font-extrabold cursor-pointer select-none active:scale-[0.98] shadow-sm uppercase tracking-wide shrink-0"
+                          >
+                            <Copy size={13} className="stroke-[2.5]" />
+                            <span>{t("Lưu Text", "Save Text")}</span>
+                          </button>
 
-                {/* DYNAMIC VIETQR BANK TRANSFER CONTAINER: HIGHLY SIMPLIFIED FOR MINIMUM HEIGHT */}
-                {activeCompany.bankAccount && (
-                  <div className={`mx-0 border rounded-2xl p-4 space-y-3.5 shadow-sm ${isCapturing ? "bg-white border-slate-200" : "border-white/80 bg-white/60 backdrop-blur-md"}`}>
-                    
-                    {/* Centered QR code with image only */}
-                    <div className={`flex flex-col items-center justify-center bg-white border border-slate-200/60 rounded-xl relative mx-auto ${isCapturing ? 'w-full p-2 aspect-[10/10]' : 'p-2 w-[88%] aspect-[10/9]'}`}>
-                      <div className="w-full h-full relative overflow-hidden flex items-center justify-center">
-                        <div className="w-full h-full absolute inset-0" style={{ transform: isCapturing ? 'scale(1.24) translateY(-2.5%)' : 'scale(1.18) translateY(-4%)', transformOrigin: 'center' }}>
-                          <img 
-                            src={getVietQrUrl()} 
-                            alt="VietQR" 
-                            crossOrigin="anonymous"
-                            referrerPolicy="no-referrer"
-                            className={`w-full h-full ${isCapturing ? 'object-contain' : 'mix-blend-multiply object-contain'}`}
+                          {/* Button 2: Lưu Ảnh (Chụp màn hình thẻ thông tin) */}
+                          <button
+                            type="button"
+                            onClick={handleCaptureImage}
+                            className="py-3 px-3 rounded-xl border border-emerald-200 bg-emerald-50/40 hover:bg-slate-900 hover:text-white hover:border-slate-900 hover:shadow-md transition-all flex items-center justify-center gap-1.5 text-xs text-emerald-700 font-extrabold cursor-pointer select-none active:scale-[0.98] shadow-sm uppercase tracking-wide shrink-0"
+                          >
+                            <Download size={13} className="stroke-[2.5]" />
+                            <span>{t("Lưu Ảnh", "Save Image")}</span>
+                          </button>
+                        </div>
+                      )}
+
+                      {/* DYNAMIC VIETQR BANK TRANSFER CONTAINER: HIGHLY SIMPLIFIED FOR MINIMUM HEIGHT */}
+                      {activeCompany.bankAccount && (
+                        <div
+                          className={`mx-0 border rounded-2xl p-4 space-y-3.5 shadow-sm ${isCapturing ? "bg-white border-slate-200" : "border-white/80 bg-white/60 backdrop-blur-md"}`}
+                        >
+                          {/* Centered QR code with image only */}
+                          <div
+                            className={`flex flex-col items-center justify-center bg-white border border-slate-200/60 rounded-xl relative mx-auto ${isCapturing ? "w-full p-2 aspect-[10/10]" : "p-2 w-[88%] aspect-[10/9]"}`}
+                          >
+                            <div className="w-full h-full relative overflow-hidden flex items-center justify-center">
+                              <div
+                                className="w-full h-full absolute inset-0"
+                                style={{
+                                  transform: isCapturing
+                                    ? "scale(1.24) translateY(-2.5%)"
+                                    : "scale(1.18) translateY(-4%)",
+                                  transformOrigin: "center",
+                                }}
+                              >
+                                <img
+                                  src={getVietQrUrl()}
+                                  alt="VietQR"
+                                  crossOrigin="anonymous"
+                                  referrerPolicy="no-referrer"
+                                  className={`w-full h-full ${isCapturing ? "object-contain" : "mix-blend-multiply object-contain"}`}
+                                />
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Copyable bank details info grid - Hidden in screenshots to rely on the uncropped VietQR image */}
+                          <div
+                            className={`p-3.5 rounded-xl border shadow-sm space-y-3 mt-4 ${isCapturing ? "hidden" : "bg-white/80 backdrop-blur-sm border-slate-200/60"}`}
+                          >
+                            <div
+                              className="flex justify-between items-center text-sm border-b border-slate-100 pb-2 cursor-pointer select-none hover:bg-slate-50/50 p-1 rounded transition-colors"
+                              onClick={() =>
+                                copyToClipboard(
+                                  getBankDetail(activeCompany.bankName)
+                                    ?.shortName || "KHÁC",
+                                  "Tên ngân hàng",
+                                )
+                              }
+                            >
+                              <span className="text-slate-450 font-extrabold uppercase text-[9.5px] shrink-0 mr-3">
+                                {t("Ngân hàng", "Bank")}
+                              </span>
+                              <div className="font-extrabold text-slate-800 flex items-center justify-end text-right min-w-0">
+                                <span className="truncate mr-1.5">
+                                  {getBankDetail(activeCompany.bankName)
+                                    ?.shortName || "NGÂN HÀNG KHÁC"}
+                                </span>
+                                {!isCapturing && (
+                                  <Copy
+                                    size={11}
+                                    className="text-slate-350 shrink-0"
+                                  />
+                                )}
+                              </div>
+                            </div>
+
+                            <div
+                              className="flex justify-between items-center text-sm border-b border-slate-150 pb-2 cursor-pointer select-none hover:bg-slate-50/50 p-1 rounded transition-colors"
+                              onClick={() =>
+                                copyToClipboard(
+                                  activeCompany.bankAccount,
+                                  "Số tài khoản",
+                                )
+                              }
+                            >
+                              <span className="text-slate-450 font-extrabold uppercase text-[9.5px] shrink-0 mr-3">
+                                {t("Số tài khoản", "Account Number")}
+                              </span>
+                              <div className="font-mono text-emerald-600 text-[13.5px] font-black flex items-center justify-end text-right tracking-wide min-w-0">
+                                <span className="truncate mr-1.5">
+                                  {activeCompany.bankAccount}
+                                </span>
+                                {!isCapturing && (
+                                  <Copy
+                                    size={11}
+                                    className="text-slate-350 shrink-0"
+                                  />
+                                )}
+                              </div>
+                            </div>
+
+                            <div
+                              className="flex justify-between items-center text-sm cursor-pointer select-none hover:bg-slate-50/50 p-1 rounded transition-colors"
+                              onClick={() =>
+                                copyToClipboard(
+                                  activeCompany.bankOwner,
+                                  "Chủ tài khoản",
+                                )
+                              }
+                            >
+                              <span className="text-slate-450 font-extrabold uppercase text-[9.5px] shrink-0 mr-3">
+                                {t("Chủ tài khoản", "Account Name")}
+                              </span>
+                              <div className="font-bold text-[13px] text-slate-700 uppercase flex items-center justify-end text-right min-w-0">
+                                <span
+                                  className="mr-1.5 max-w-full text-right"
+                                  style={{
+                                    display: "-webkit-box",
+                                    WebkitLineClamp: 2,
+                                    WebkitBoxOrient: "vertical",
+                                    overflow: "hidden",
+                                    wordBreak: "break-word",
+                                    lineHeight: "1.2",
+                                  }}
+                                >
+                                  {activeCompany.bankOwner}
+                                </span>
+                                {!isCapturing && (
+                                  <Copy
+                                    size={11}
+                                    className="text-slate-350 shrink-0"
+                                  />
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Small Space-Saving Support Banner */}
+                    {!isCapturing && (
+                      <div className="px-6 pb-2 mt-auto">
+                        <button
+                          type="button"
+                          onClick={() => setSupportModalOpen(true)}
+                          className="w-full py-2 px-3 rounded-lg border border-rose-100 bg-rose-50/30 hover:bg-rose-50/70 hover:border-rose-200 transition-all flex items-center justify-center gap-1.5 text-[11px] text-rose-700 font-semibold cursor-pointer select-none active:scale-[0.98] shadow-sm"
+                        >
+                          <Heart
+                            size={12}
+                            className="fill-rose-500 stroke-rose-400/30 animate-pulse"
                           />
-                        </div>
+                          {t("Ủng hộ nhà phát triển", "Support developer")}
+                        </button>
                       </div>
-                    </div>
+                    )}
 
-                    {/* Copyable bank details info grid - Hidden in screenshots to rely on the uncropped VietQR image */}
-                    <div className={`p-3.5 rounded-xl border shadow-sm space-y-3 mt-4 ${isCapturing ? "hidden" : "bg-white/80 backdrop-blur-sm border-slate-200/60"}`}>
-                      <div 
-                        className="flex justify-between items-center text-sm border-b border-slate-100 pb-2 cursor-pointer select-none hover:bg-slate-50/50 p-1 rounded transition-colors" 
-                        onClick={() => copyToClipboard(getBankDetail(activeCompany.bankName)?.shortName || "KHÁC", "Tên ngân hàng")}
-                      >
-                        <span className="text-slate-450 font-extrabold uppercase text-[9.5px] shrink-0 mr-3">{t("Ngân hàng", "Bank")}</span>
-                        <div className="font-extrabold text-slate-800 flex items-center justify-end text-right min-w-0">
-                          <span className="truncate mr-1.5">{getBankDetail(activeCompany.bankName)?.shortName || "NGÂN HÀNG KHÁC"}</span>
-                          {!isCapturing && <Copy size={11} className="text-slate-350 shrink-0" />}
-                        </div>
-                      </div>
-                      
-                      <div 
-                        className="flex justify-between items-center text-sm border-b border-slate-150 pb-2 cursor-pointer select-none hover:bg-slate-50/50 p-1 rounded transition-colors" 
-                        onClick={() => copyToClipboard(activeCompany.bankAccount, "Số tài khoản")}
-                      >
-                        <span className="text-slate-450 font-extrabold uppercase text-[9.5px] shrink-0 mr-3">{t("Số tài khoản", "Account Number")}</span>
-                        <div className="font-mono text-emerald-600 text-[13.5px] font-black flex items-center justify-end text-right tracking-wide min-w-0">
-                          <span className="truncate mr-1.5">{activeCompany.bankAccount}</span>
-                          {!isCapturing && <Copy size={11} className="text-slate-350 shrink-0" />}
-                        </div>
-                      </div>
-
-                      <div 
-                        className="flex justify-between items-center text-sm cursor-pointer select-none hover:bg-slate-50/50 p-1 rounded transition-colors" 
-                        onClick={() => copyToClipboard(activeCompany.bankOwner, "Chủ tài khoản")}
-                      >
-                        <span className="text-slate-450 font-extrabold uppercase text-[9.5px] shrink-0 mr-3">{t("Chủ tài khoản", "Account Name")}</span>
-                        <div className="font-bold text-[13px] text-slate-700 uppercase flex items-center justify-end text-right min-w-0">
-                          <span className="mr-1.5 max-w-full text-right" style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', wordBreak: 'break-word', lineHeight: '1.2' }}>{activeCompany.bankOwner}</span>
-                          {!isCapturing && <Copy size={11} className="text-slate-350 shrink-0" />}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-                {/* Small Space-Saving Support Banner */}
-                {!isCapturing && (
-                  <div className="px-6 pb-2 mt-auto">
-                    <button
-                      type="button"
-                      onClick={() => setSupportModalOpen(true)}
-                      className="w-full py-2 px-3 rounded-lg border border-rose-100 bg-rose-50/30 hover:bg-rose-50/70 hover:border-rose-200 transition-all flex items-center justify-center gap-1.5 text-[11px] text-rose-700 font-semibold cursor-pointer select-none active:scale-[0.98] shadow-sm"
+                    {/* Bottom design credits */}
+                    <div
+                      className={`${isCapturing ? "mt-2 border-none pb-4 pt-1" : "mt-auto pt-4 pb-6 border-t"} bg-white/80 backdrop-blur-md px-6 md:pb-5 border-slate-200/50 flex justify-between items-center text-xs text-slate-400 w-full rounded-b-none md:rounded-b-[33px] relative z-20 transform-gpu`}
                     >
-                      <Heart size={12} className="fill-rose-500 stroke-rose-400/30 animate-pulse" />
-                      {t("Ủng hộ nhà phát triển", "Support developer")}
-                    </button>
-                  </div>
-                )}
+                      {isCapturing ? (
+                        <span className="flex items-center gap-1.5 w-full justify-center text-slate-500 font-medium relative z-10 transform-gpu">
+                          <span className="uppercase text-[9px] tracking-widest text-slate-400 font-bold">
+                            {t("Nguồn", "Source")}:
+                          </span>
+                          <span className="text-indigo-600 font-mono font-bold tracking-wide">
+                            vat.{appDomain}/{activeCompany.username}
+                          </span>
+                        </span>
+                      ) : (
+                        <span className="flex items-center gap-1 relative z-10 transform-gpu">
+                          Xây dựng bởi{" "}
+                          <button
+                            type="button"
+                            onClick={navigateToHome}
+                            className="font-bold text-emerald-600 hover:text-emerald-700 hover:underline"
+                          >
+                            {appDomain}
+                          </button>
+                        </span>
+                      )}
 
-                {/* Bottom design credits */}
-                <div className={`${isCapturing ? 'mt-2 border-none pb-4 pt-1' : 'mt-auto pt-4 pb-6 border-t'} bg-white/80 backdrop-blur-md px-6 md:pb-5 border-slate-200/50 flex justify-between items-center text-xs text-slate-400 w-full rounded-b-none md:rounded-b-[33px] relative z-20 transform-gpu`}>
-                  {isCapturing ? (
-                    <span className="flex items-center gap-1.5 w-full justify-center text-slate-500 font-medium relative z-10 transform-gpu">
-                      <span className="uppercase text-[9px] tracking-widest text-slate-400 font-bold">{t("Nguồn", "Source")}:</span> 
-                      <span className="text-indigo-600 font-mono font-bold tracking-wide">vat.{appDomain}/{activeCompany.username}</span>
-                    </span>
-                  ) : (
-                    <span className="flex items-center gap-1 relative z-10 transform-gpu">
-                      Xây dựng bởi <button type="button" onClick={navigateToHome} className="font-bold text-emerald-600 hover:text-emerald-700 hover:underline">{appDomain}</button>
-                    </span>
-                  )}
-                  
-                  {!isCapturing && (
-                    <div className="flex items-center gap-2 relative z-10 transform-gpu">
-                      <button 
-                        onClick={() => navigateToSlug(activeCompany.username, "admin")}
-                        className="text-[11px] font-semibold text-slate-500 hover:text-slate-800 flex items-center gap-1 hover:underline"
-                      >
-                        <Edit size={11} className="text-slate-400" /> Sửa thông tin
-                      </button>
+                      {!isCapturing && (
+                        <div className="flex items-center gap-2 relative z-10 transform-gpu">
+                          <button
+                            onClick={() =>
+                              navigateToSlug(activeCompany.username, "admin")
+                            }
+                            className="text-[11px] font-semibold text-slate-500 hover:text-slate-800 flex items-center gap-1 hover:underline"
+                          >
+                            <Edit size={11} className="text-slate-400" /> Sửa
+                            thông tin
+                          </button>
+                        </div>
+                      )}
                     </div>
-                  )}
+                  </div>
+                  {/* relative z-10 block */}
                 </div>
-              </div>{/* relative z-10 block */}
-             </div>{/* View scrolling Inner container */}
-             </div>{/* Perfect outer clipping layer */}
-            </div>{/* phone mock */}
+                {/* View scrolling Inner container */}
+              </div>
+              {/* Perfect outer clipping layer */}
+            </div>
+            {/* phone mock */}
           </div>
         )}
 
         {/* ==================== 3. ADMIN CONTROL CENTER ==================== */}
         {route === "admin" && activeCompany && (
           <div className="w-full bg-slate-100 py-12 px-4 flex-1 flex flex-col justify-center min-h-[90vh] relative overflow-hidden">
-
             <div className="max-w-2xl mx-auto w-full bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-xl relative z-10">
-              
               <div className="flex items-center gap-3 border-b border-slate-100 pb-5 mb-6">
                 <div className="w-10 h-10 rounded-lg bg-indigo-50 border border-indigo-150 flex items-center justify-center text-indigo-600 shrink-0">
                   <Settings size={20} className="stroke-[2.5]" />
                 </div>
                 <div>
                   <h3 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
-                    Admin Control Panel <span className="text-[10px] bg-slate-100 text-slate-600 border border-slate-200 font-mono px-2 py-0.5 rounded uppercase tracking-wider">/{activeCompany.username}</span>
+                    Admin Control Panel{" "}
+                    <span className="text-[10px] bg-slate-100 text-slate-600 border border-slate-200 font-mono px-2 py-0.5 rounded uppercase tracking-wider">
+                      /{activeCompany.username}
+                    </span>
                   </h3>
-                  <p className="text-xs text-slate-400 font-medium">Thông tin xuất hóa đơn "{activeCompany.companyName}"</p>
+                  <p className="text-xs text-slate-400 font-medium">
+                    Thông tin xuất hóa đơn "{activeCompany.companyName}"
+                  </p>
                 </div>
               </div>
 
@@ -3032,29 +3760,45 @@ Email nhận hóa đơn: ${activeCompany.email || ""}${activeCompany.bankAccount
                     <Lock size={28} className="stroke-[2.5]" />
                   </div>
                   <div>
-                    <h4 className="text-sm font-bold text-slate-900 uppercase tracking-wide">Đăng nhập Admin Control Panel</h4>
-                    <p className="text-xs text-slate-400 mt-1 font-medium leading-relaxed">Vui lòng điền đúng Tên đăng nhập và Mật khẩu PIN của doanh nghiệp để quản lý.</p>
+                    <h4 className="text-sm font-bold text-slate-900 uppercase tracking-wide">
+                      Đăng nhập Admin Control Panel
+                    </h4>
+                    <p className="text-xs text-slate-400 mt-1 font-medium leading-relaxed">
+                      Vui lòng điền đúng Tên đăng nhập và Mật khẩu PIN của doanh
+                      nghiệp để quản lý.
+                    </p>
                   </div>
 
-                  <form onSubmit={handleAdminLogin} className="space-y-4 text-left">
+                  <form
+                    onSubmit={handleAdminLogin}
+                    className="space-y-4 text-left"
+                  >
                     <div>
-                      <label className="block text-xs font-semibold text-slate-600 mb-1">Tên đăng nhập (username slug)</label>
-                      <input 
-                        type="text" 
+                      <label className="block text-xs font-semibold text-slate-600 mb-1">
+                        Tên đăng nhập (username slug)
+                      </label>
+                      <input
+                        type="text"
                         required
-                        placeholder="Ví dụ: cong-ty-cua-ban" 
+                        placeholder="Ví dụ: cong-ty-cua-ban"
                         value={adminUsernameInput}
-                        onChange={(e) => setAdminUsernameInput(e.target.value.toLowerCase().trim())}
+                        onChange={(e) =>
+                          setAdminUsernameInput(
+                            e.target.value.toLowerCase().trim(),
+                          )
+                        }
                         className="w-full py-2.5 px-4 rounded-lg border border-slate-200 bg-slate-50 text-sm focus:border-indigo-600 focus:bg-white focus:outline-none font-mono text-slate-950"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-xs font-semibold text-slate-600 mb-1">Mật khẩu PIN bí mật</label>
-                      <input 
-                        type="password" 
+                      <label className="block text-xs font-semibold text-slate-600 mb-1">
+                        Mật khẩu PIN bí mật
+                      </label>
+                      <input
+                        type="password"
                         required
-                        placeholder="Nhập mã PIN mật khẩu..." 
+                        placeholder="Nhập mã PIN mật khẩu..."
                         value={adminPassword}
                         onChange={(e) => setAdminPassword(e.target.value)}
                         className="w-full py-2.5 px-4 rounded-lg border border-slate-200 bg-slate-50 text-sm focus:border-indigo-600 focus:bg-white focus:outline-none font-mono tracking-widest text-slate-950"
@@ -3062,19 +3806,23 @@ Email nhận hóa đơn: ${activeCompany.email || ""}${activeCompany.bankAccount
                     </div>
 
                     {loginError && (
-                      <p className="text-xs text-red-500 font-bold">✕ {loginError}</p>
+                      <p className="text-xs text-red-500 font-bold">
+                        ✕ {loginError}
+                      </p>
                     )}
 
                     <div className="pt-2 flex gap-3">
-                      <button 
-                        type="button" 
-                        onClick={() => navigateToSlug(activeCompany.username, "view")}
+                      <button
+                        type="button"
+                        onClick={() =>
+                          navigateToSlug(activeCompany.username, "view")
+                        }
                         className="flex-1 py-3 border border-slate-200 rounded-lg text-xs font-bold text-slate-600 hover:text-slate-900 uppercase tracking-wider transition-all"
                       >
                         Quay lại
                       </button>
-                      <button 
-                        type="submit" 
+                      <button
+                        type="submit"
                         className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs uppercase tracking-wider rounded-lg shadow-lg shadow-indigo-100 transition-all cursor-pointer"
                       >
                         Xác nhận
@@ -3085,37 +3833,44 @@ Email nhận hóa đơn: ${activeCompany.email || ""}${activeCompany.bankAccount
               ) : (
                 /* FULLY LOGGED-IN ADMINISTRATIVE ENGINE */
                 <div className="space-y-6 text-slate-900">
-                  
                   {/* Tab Selector bar inside the AdminCP */}
                   <div className="flex border-b border-slate-100 gap-2 pb-1 text-xs uppercase tracking-wider overflow-x-auto no-scrollbar">
-                    <button 
-                      onClick={() => setAdminCPTab("info")} 
+                    <button
+                      onClick={() => setAdminCPTab("info")}
                       className={`py-2 px-3 border-b-2 font-bold transition-all ${
-                        adminCPTab === "info" ? "border-indigo-600 text-indigo-600" : "border-transparent text-slate-400 hover:text-slate-800"
+                        adminCPTab === "info"
+                          ? "border-indigo-600 text-indigo-600"
+                          : "border-transparent text-slate-400 hover:text-slate-800"
                       }`}
                     >
                       Thông tin xuất hóa đơn
                     </button>
-                    <button 
-                      onClick={() => setAdminCPTab("banks")} 
+                    <button
+                      onClick={() => setAdminCPTab("banks")}
                       className={`py-2 px-3 border-b-2 font-bold transition-all ${
-                        adminCPTab === "banks" ? "border-indigo-600 text-indigo-600" : "border-transparent text-slate-400 hover:text-slate-800"
+                        adminCPTab === "banks"
+                          ? "border-indigo-600 text-indigo-600"
+                          : "border-transparent text-slate-400 hover:text-slate-800"
                       }`}
                     >
                       Chuyển khoản VietQR
                     </button>
-                    <button 
-                      onClick={() => setAdminCPTab("domain")} 
+                    <button
+                      onClick={() => setAdminCPTab("domain")}
                       className={`py-2 px-3 border-b-2 font-bold transition-all ${
-                        adminCPTab === "domain" ? "border-indigo-600 text-indigo-600" : "border-transparent text-slate-400 hover:text-slate-800"
+                        adminCPTab === "domain"
+                          ? "border-indigo-600 text-indigo-600"
+                          : "border-transparent text-slate-400 hover:text-slate-800"
                       }`}
                     >
                       Tên miền riêng
                     </button>
-                    <button 
-                      onClick={() => setAdminCPTab("danger")} 
+                    <button
+                      onClick={() => setAdminCPTab("danger")}
                       className={`py-2 px-3 border-b-2 font-bold transition-all ${
-                        adminCPTab === "danger" ? "border-red-600 text-red-600" : "border-transparent text-slate-400 hover:text-slate-800"
+                        adminCPTab === "danger"
+                          ? "border-red-600 text-red-600"
+                          : "border-transparent text-slate-400 hover:text-slate-800"
                       }`}
                     >
                       Bảo mật
@@ -3123,14 +3878,15 @@ Email nhận hóa đơn: ${activeCompany.email || ""}${activeCompany.bankAccount
                   </div>
 
                   <form onSubmit={handleSaveEdits} className="space-y-5">
-                    
                     {/* TAB 1: CORPORATE DETAIL INFO */}
                     {adminCPTab === "info" && (
                       <div className="space-y-4">
                         <div>
-                          <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">Tên Đầy Đủ Đơn Vị (Viết hóa đơn)</label>
-                          <input 
-                            type="text" 
+                          <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">
+                            Tên Đầy Đủ Đơn Vị (Viết hóa đơn)
+                          </label>
+                          <input
+                            type="text"
                             required
                             value={editCompanyName}
                             onChange={(e) => {
@@ -3144,20 +3900,26 @@ Email nhận hóa đơn: ${activeCompany.email || ""}${activeCompany.bankAccount
                         </div>
 
                         <div>
-                          <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">Mã Số Thuế (Bản gốc)</label>
-                          <input 
-                            type="text" 
+                          <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">
+                            Mã Số Thuế (Bản gốc)
+                          </label>
+                          <input
+                            type="text"
                             required
                             value={editTaxCode}
-                            onChange={(e) => setEditTaxCode(e.target.value.replace(/\s+/g, ""))}
+                            onChange={(e) =>
+                              setEditTaxCode(e.target.value.replace(/\s+/g, ""))
+                            }
                             className="w-full bg-slate-50 border border-slate-200 px-3 py-2.5 rounded-lg text-sm font-mono text-slate-900 focus:outline-none focus:border-indigo-600 focus:bg-white font-bold"
                           />
                         </div>
 
                         <div>
-                          <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">Địa chỉ Đăng Ký Kinh Doanh</label>
-                          <input 
-                            type="text" 
+                          <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">
+                            Địa chỉ Đăng Ký Kinh Doanh
+                          </label>
+                          <input
+                            type="text"
                             required
                             value={editAddress}
                             onChange={(e) => setEditAddress(e.target.value)}
@@ -3167,9 +3929,11 @@ Email nhận hóa đơn: ${activeCompany.email || ""}${activeCompany.bankAccount
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div>
-                            <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">Email Nhận Hóa Đơn</label>
-                            <input 
-                              type="email" 
+                            <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">
+                              Email Nhận Hóa Đơn
+                            </label>
+                            <input
+                              type="email"
                               value={editEmail}
                               onChange={(e) => setEditEmail(e.target.value)}
                               className={`w-full border px-3 py-2.5 rounded-lg text-sm focus:outline-none transition-all ${
@@ -3179,14 +3943,21 @@ Email nhận hóa đơn: ${activeCompany.email || ""}${activeCompany.bankAccount
                               }`}
                             />
                             {isEmailInvalid(editEmail) && (
-                              <p className="text-[10px] text-red-500 mt-1 font-medium">{t("Email không hợp lệ.", "Invalid email address.")}</p>
+                              <p className="text-[10px] text-red-500 mt-1 font-medium">
+                                {t(
+                                  "Email không hợp lệ.",
+                                  "Invalid email address.",
+                                )}
+                              </p>
                             )}
                           </div>
 
                           <div>
-                            <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">Số điện thoại liên hệ</label>
-                            <input 
-                              type="text" 
+                            <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">
+                              Số điện thoại liên hệ
+                            </label>
+                            <input
+                              type="text"
                               maxLength={13}
                               value={editPhone}
                               onChange={(e) => setEditPhone(e.target.value)}
@@ -3197,46 +3968,75 @@ Email nhận hóa đơn: ${activeCompany.email || ""}${activeCompany.bankAccount
                               }`}
                             />
                             {isPhoneInvalid(editPhone) && (
-                              <p className="text-[10px] text-red-500 mt-1 font-medium">{t("Số điện thoại không hợp lệ (chỉ nhập số, tối đa 13 ký tự).", "Invalid phone number.")}</p>
+                              <p className="text-[10px] text-red-500 mt-1 font-medium">
+                                {t(
+                                  "Số điện thoại không hợp lệ (chỉ nhập số, tối đa 13 ký tự).",
+                                  "Invalid phone number.",
+                                )}
+                              </p>
                             )}
                           </div>
                         </div>
 
                         {/* Logo Uploading interface moved to Info Tab */}
                         <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 mt-4">
-                          <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5 font-sans">Logo đơn vị mới</label>
+                          <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5 font-sans">
+                            Logo đơn vị mới
+                          </label>
                           <div className="mt-2 flex items-center gap-4">
                             <div className="w-16 h-16 rounded-lg bg-white border border-slate-200 flex items-center justify-center p-1 shrink-0 animate-fade-in">
                               {editLogoUrl ? (
-                                <img src={editLogoUrl} alt="Logo" referrerPolicy="no-referrer" className="max-w-full max-h-full object-contain"  crossOrigin="anonymous" />
+                                <img
+                                  src={editLogoUrl}
+                                  alt="Logo"
+                                  referrerPolicy="no-referrer"
+                                  className="max-w-full max-h-full object-contain"
+                                  crossOrigin="anonymous"
+                                />
                               ) : (
-                                <Building2 size={24} className="text-slate-350" />
+                                <Building2
+                                  size={24}
+                                  className="text-slate-350"
+                                />
                               )}
                             </div>
                             <div className="flex-1 space-y-1">
-                              <input 
-                                type="file" 
+                              <input
+                                type="file"
                                 accept="image/*"
                                 onChange={(e) => handleLogoUpload(e, "edit")}
                                 className="block w-full text-xs text-slate-500 file:mr-2 file:py-1 file:px-3 file:rounded file:border file:border-slate-200 file:text-xs file:font-semibold file:bg-white file:text-indigo-600 hover:file:bg-slate-50 cursor-pointer"
                               />
-                              <p className="text-[9px] text-slate-400 font-medium">Được tối ưu chuyển hóa Base64 lưu trực tiếp an toàn. Màu chủ đạo sẽ tự động cập nhật theo logo.</p>
+                              <p className="text-[9px] text-slate-400 font-medium">
+                                Được tối ưu chuyển hóa Base64 lưu trực tiếp an
+                                toàn. Màu chủ đạo sẽ tự động cập nhật theo logo.
+                              </p>
                             </div>
                           </div>
                         </div>
 
                         {/* Custom Web Title Section */}
                         <div className="bg-indigo-50/40 p-4 rounded-xl border border-indigo-100 mt-4 animate-fade-in shadow-sm">
-                          <label className="block text-[10px] font-bold text-indigo-700 uppercase tracking-widest mb-1.5 font-sans">Tiêu đề Website riêng (Page Title SEO)</label>
-                          <input 
-                            type="text" 
+                          <label className="block text-[10px] font-bold text-indigo-700 uppercase tracking-widest mb-1.5 font-sans">
+                            Tiêu đề Website riêng (Page Title SEO)
+                          </label>
+                          <input
+                            type="text"
                             value={editWebsiteTitle}
-                            onChange={(e) => setEditWebsiteTitle(e.target.value)}
+                            onChange={(e) =>
+                              setEditWebsiteTitle(e.target.value)
+                            }
                             placeholder={`${editCompanyName || "Doanh nghiệp"} - Thông tin xuất hóa đơn`}
                             className="w-full bg-white border border-indigo-200/60 px-3 py-2.5 rounded-lg text-sm text-slate-800 focus:outline-none focus:border-indigo-600 transition-all font-medium"
                           />
                           <p className="text-[9px] text-slate-450 mt-1.5 font-medium leading-relaxed">
-                            Cấu hình tiêu đề hiển thị trên trình duyệt khi khách vào xem trang này. Nếu không thiết lập, hệ thống hiển thị mặc định: <span className="font-semibold text-indigo-700">Tạo trang thông tin xuất hóa đơn VAT</span>.
+                            Cấu hình tiêu đề hiển thị trên trình duyệt khi khách
+                            vào xem trang này. Nếu không thiết lập, hệ thống
+                            hiển thị mặc định:{" "}
+                            <span className="font-semibold text-indigo-700">
+                              Tạo trang thông tin xuất hóa đơn VAT
+                            </span>
+                            .
                           </p>
                         </div>
                       </div>
@@ -3247,8 +4047,10 @@ Email nhận hóa đơn: ${activeCompany.email || ""}${activeCompany.bankAccount
                       <div className="space-y-4">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div>
-                            <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">Ngân hàng phát hành VietQR</label>
-                            <select 
+                            <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">
+                              Ngân hàng phát hành VietQR
+                            </label>
+                            <select
                               value={editBankName}
                               onChange={(e) => {
                                 const val = e.target.value;
@@ -3268,15 +4070,25 @@ Email nhận hóa đơn: ${activeCompany.email || ""}${activeCompany.bankAccount
                           </div>
 
                           <div>
-                            <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">Số Tài Khoản</label>
-                            <input 
-                              type="text" 
+                            <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">
+                              Số Tài Khoản
+                            </label>
+                            <input
+                              type="text"
                               required
                               value={editBankAccount}
-                              onChange={(e) => setEditBankAccount(e.target.value.replace(/\D/g, ""))}
+                              onChange={(e) =>
+                                setEditBankAccount(
+                                  e.target.value.replace(/\D/g, ""),
+                                )
+                              }
                               onBlur={() => {
                                 if (editBankAccount) {
-                                  handleBankLookup(editBankName, editBankAccount, true);
+                                  handleBankLookup(
+                                    editBankName,
+                                    editBankAccount,
+                                    true,
+                                  );
                                 }
                               }}
                               className="w-full bg-slate-50 border border-slate-200 px-3 py-2.5 rounded-lg text-sm font-mono text-slate-900 focus:outline-none focus:border-indigo-600 focus:bg-white font-extrabold"
@@ -3286,15 +4098,20 @@ Email nhận hóa đơn: ${activeCompany.email || ""}${activeCompany.bankAccount
 
                         <div>
                           <div className="flex items-center justify-between mb-1.5">
-                            <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest">Chủ Tài Khoản (Viết hoa không dấu)</label>
+                            <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                              Chủ Tài Khoản (Viết hoa không dấu)
+                            </label>
                             <label className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-500 hover:text-slate-800 cursor-pointer select-none">
-                              <input 
+                              <input
                                 type="checkbox"
                                 checked={editSyncWithCompany}
                                 onChange={(e) => {
                                   setEditSyncWithCompany(e.target.checked);
                                   if (e.target.checked && editCompanyName) {
-                                    const unsignedOwner = removeVietnameseTones(editCompanyName).toUpperCase();
+                                    const unsignedOwner =
+                                      removeVietnameseTones(
+                                        editCompanyName,
+                                      ).toUpperCase();
                                     setEditBankOwner(unsignedOwner);
                                   }
                                 }}
@@ -3303,8 +4120,8 @@ Email nhận hóa đơn: ${activeCompany.email || ""}${activeCompany.bankAccount
                               <span>Giống tên công ty</span>
                             </label>
                           </div>
-                          <input 
-                            type="text" 
+                          <input
+                            type="text"
                             required
                             value={editBankOwner}
                             onChange={(e) => {
@@ -3324,23 +4141,46 @@ Email nhận hóa đơn: ${activeCompany.email || ""}${activeCompany.bankAccount
                       <div className="space-y-5">
                         <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
                           <h4 className="text-xs font-extrabold text-slate-900 uppercase flex items-center gap-1">
-                            <Globe size={14} className="stroke-[2.5]" /> {t("Cấu hình tên miền riêng", "Custom Domain Configuration")}
+                            <Globe size={14} className="stroke-[2.5]" />{" "}
+                            {t(
+                              "Cấu hình tên miền riêng",
+                              "Custom Domain Configuration",
+                            )}
                           </h4>
                           <div>
-                            <label className="block text-[9px] text-slate-450 uppercase font-extrabold mb-1">{t("Tên miền của bạn (ví dụ: congty.com)", "Your Domain")}</label>
-                            <input 
-                              type="text" 
+                            <label className="block text-[9px] text-slate-450 uppercase font-extrabold mb-1">
+                              {t(
+                                "Tên miền của bạn (ví dụ: congty.com)",
+                                "Your Domain",
+                              )}
+                            </label>
+                            <input
+                              type="text"
                               placeholder="www.tencongty.com"
                               value={editCustomDomain}
-                              onChange={(e) => setEditCustomDomain(e.target.value.toLowerCase().trim())}
+                              onChange={(e) =>
+                                setEditCustomDomain(
+                                  e.target.value.toLowerCase().trim(),
+                                )
+                              }
                               className="w-full bg-white border border-slate-200 px-3 py-2 rounded-lg text-sm font-mono focus:outline-none focus:border-indigo-600"
                             />
                             <div className="mt-3 p-3 bg-indigo-50 border border-indigo-100 rounded text-[10px] text-indigo-900 leading-relaxed font-medium">
-                              Để sử dụng, vui lòng thiết lập DNS tại nơi cung cấp tên miền:<br/>
-                              • Loại record: <strong>CNAME</strong><br/>
-                              • Tên (Host): <strong>@</strong> hoặc <strong>www</strong><br/>
-                              • Giá trị (Value): <strong>{appDomain}</strong><br/>
-                              <span className="text-red-600">Lưu ý: Bạn phải thêm thuộc tính CNAME trên nhà cung cấp tên miền trước hoặc sau khi thêm cấu hình này để tính năng có tác dụng. Hệ thống sẽ tự động điều hướng kết nối cho tên miền bạn điền vào.</span>
+                              Để sử dụng, vui lòng thiết lập DNS tại nơi cung
+                              cấp tên miền:
+                              <br />• Loại record: <strong>CNAME</strong>
+                              <br />• Tên (Host): <strong>@</strong> hoặc{" "}
+                              <strong>www</strong>
+                              <br />• Giá trị (Value):{" "}
+                              <strong>{appDomain}</strong>
+                              <br />
+                              <span className="text-red-600">
+                                Lưu ý: Bạn phải thêm thuộc tính CNAME trên nhà
+                                cung cấp tên miền trước hoặc sau khi thêm cấu
+                                hình này để tính năng có tác dụng. Hệ thống sẽ
+                                tự động điều hướng kết nối cho tên miền bạn điền
+                                vào.
+                              </span>
                             </div>
                           </div>
                         </div>
@@ -3350,19 +4190,29 @@ Email nhận hóa đơn: ${activeCompany.email || ""}${activeCompany.bankAccount
                     {/* TAB 4: PASSWORD & PERMANENT REMOVAL */}
                     {adminCPTab === "danger" && (
                       <div className="space-y-6">
-
                         {/* Changing administrative passwords */}
                         <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
                           <h4 className="text-xs font-extrabold text-slate-900 uppercase flex items-center gap-1">
-                            <Lock size={14} className="stroke-[2.5]" /> {t("Thay đổi mã PIN quản trị viên", "Modify administrator PIN password")}
+                            <Lock size={14} className="stroke-[2.5]" />{" "}
+                            {t(
+                              "Thay đổi mã PIN quản trị viên",
+                              "Modify administrator PIN password",
+                            )}
                           </h4>
                           <div>
-                            <label className="block text-[9px] text-slate-450 uppercase font-extrabold mb-1">{t("Mật khẩu mới", "New password")}</label>
-                            <input 
-                              type="password" 
-                              placeholder={t("Để trống nếu giữ nguyên mật khẩu cũ...", "Leave blank to keep old password...")}
+                            <label className="block text-[9px] text-slate-450 uppercase font-extrabold mb-1">
+                              {t("Mật khẩu mới", "New password")}
+                            </label>
+                            <input
+                              type="password"
+                              placeholder={t(
+                                "Để trống nếu giữ nguyên mật khẩu cũ...",
+                                "Leave blank to keep old password...",
+                              )}
                               value={editNewPassword}
-                              onChange={(e) => setEditNewPassword(e.target.value)}
+                              onChange={(e) =>
+                                setEditNewPassword(e.target.value)
+                              }
                               className="w-full bg-white border border-slate-200 px-3 py-2 rounded-lg text-sm font-mono focus:outline-none"
                             />
                           </div>
@@ -3371,27 +4221,39 @@ Email nhận hóa đơn: ${activeCompany.email || ""}${activeCompany.bankAccount
                         {/* Permanent deletion block with high contrast distinct style */}
                         <div className="p-5 bg-red-50 border-2 border-red-300 rounded-xl space-y-3.5 ms-0">
                           <h4 className="text-xs font-black text-red-800 uppercase flex items-center gap-2 leading-none">
-                            <Trash2 size={16} className="text-red-700" /> {t("XÓA VĨNH VIỄN TRANG THÔNG TIN DOANH NGHIỆP", "PERMANENTLY DELETE COMPANY PAGE")}
+                            <Trash2 size={16} className="text-red-700" />{" "}
+                            {t(
+                              "XÓA VĨNH VIỄN TRANG THÔNG TIN DOANH NGHIỆP",
+                              "PERMANENTLY DELETE COMPANY PAGE",
+                            )}
                           </h4>
                           <p className="text-[11px] text-red-950 leading-relaxed font-bold">
                             {t(
                               "Thao tác này hoàn toàn KHÔNG THỂ đảo ngược. Đường dẫn public sẽ bị xóa vĩnh viễn hoàn toàn, người khác có thể đăng ký lại Slug username này.",
-                              "This action is absolutely IRREVERSIBLE. The public link will be permanently deleted and someone else can register this slug username."
+                              "This action is absolutely IRREVERSIBLE. The public link will be permanently deleted and someone else can register this slug username.",
                             )}
                           </p>
 
                           {!showDeleteConfirm ? (
-                            <button 
+                            <button
                               type="button"
                               onClick={() => setShowDeleteConfirm(true)}
                               className="text-xs font-extrabold uppercase tracking-widest bg-red-700 hover:bg-red-800 text-white rounded-lg px-5 py-3 transition-all cursor-pointer inline-flex items-center gap-2 shadow-lg hover:shadow-red-200 border-2 border-red-800 active:scale-95"
                             >
-                              <Trash2 size={14} /> {t("Xóa vĩnh viễn hoàn toàn", "Permanently delete completely")}
+                              <Trash2 size={14} />{" "}
+                              {t(
+                                "Xóa vĩnh viễn hoàn toàn",
+                                "Permanently delete completely",
+                              )}
                             </button>
                           ) : (
                             <div className="p-4 bg-white border border-red-200 rounded-lg space-y-2.5">
                               <p className="text-xs text-red-700 font-extrabold flex items-center gap-1.5 whitespace-normal">
-                                ⚠️ {t("Bạn có chắc chắn 100% muốn xóa vĩnh viễn trang này?", "Are you 100% sure you want to permanently delete this page?")}
+                                ⚠️{" "}
+                                {t(
+                                  "Bạn có chắc chắn 100% muốn xóa vĩnh viễn trang này?",
+                                  "Are you 100% sure you want to permanently delete this page?",
+                                )}
                               </p>
                               <div className="flex flex-wrap gap-2">
                                 <button
@@ -3399,27 +4261,30 @@ Email nhận hóa đơn: ${activeCompany.email || ""}${activeCompany.bankAccount
                                   onClick={() => setShowDeleteConfirm(false)}
                                   className="text-xs font-bold text-slate-700 bg-slate-200 hover:bg-slate-300 rounded px-4 py-2 cursor-pointer transition-colors"
                                 >
-                                  {t("Hủy bỏ, giữ lại trang", "Cancel, keep page")}
+                                  {t(
+                                    "Hủy bỏ, giữ lại trang",
+                                    "Cancel, keep page",
+                                  )}
                                 </button>
                                 <button
                                   type="button"
                                   onClick={handleDeleteCompany}
                                   className="text-xs font-black uppercase tracking-wider bg-red-600 hover:bg-red-700 text-white rounded px-4 py-2 cursor-pointer transition-colors active:scale-95 flex items-center gap-1"
                                 >
-                                  <Trash2 size={12} /> {t("Xác nhận xóa ngay", "Confirm delete now")}
+                                  <Trash2 size={12} />{" "}
+                                  {t("Xác nhận xóa ngay", "Confirm delete now")}
                                 </button>
                               </div>
                             </div>
                           )}
                         </div>
-
                       </div>
                     )}
 
                     {/* ACTIONS BUTTON DETAILS */}
                     <div className="pt-4 border-t border-slate-100 flex justify-between gap-3">
-                      <button 
-                        type="button" 
+                      <button
+                        type="button"
                         onClick={() => {
                           setIsLoggedAdmin(false);
                           navigateToSlug(activeCompany.username, "view");
@@ -3429,18 +4294,16 @@ Email nhận hóa đơn: ${activeCompany.email || ""}${activeCompany.bankAccount
                         Thoát panel
                       </button>
 
-                      <button 
-                        type="submit" 
+                      <button
+                        type="submit"
                         className="py-3 px-6 rounded-lg text-xs font-extrabold uppercase tracking-wider text-white bg-indigo-600 hover:bg-indigo-700 hover:shadow-lg hover:shadow-indigo-100 transition-all cursor-pointer"
                       >
                         Lưu cấu hình cập nhật
                       </button>
                     </div>
-
                   </form>
                 </div>
               )}
-
             </div>
           </div>
         )}
@@ -3453,36 +4316,65 @@ Email nhận hóa đơn: ${activeCompany.email || ""}${activeCompany.bankAccount
                 <div className="h-12 w-12 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center shadow-inner mb-3">
                   <Lock size={22} className="stroke-[2.5]" />
                 </div>
-                <h2 className="text-xl font-bold text-slate-800">{t("Đăng nhập Hệ thống", "System Login")}</h2>
-                <p className="text-xs text-slate-500 mt-1">{t("Cung cấp tài khoản quản trị viên để tiếp tục", "Provide admin credentials to continue")}</p>
+                <h2 className="text-xl font-bold text-slate-800">
+                  {t("Đăng nhập Hệ thống", "System Login")}
+                </h2>
+                <p className="text-xs text-slate-500 mt-1">
+                  {t(
+                    "Cung cấp tài khoản quản trị viên để tiếp tục",
+                    "Provide admin credentials to continue",
+                  )}
+                </p>
               </div>
 
-              <form onSubmit={async (e) => {
-                e.preventDefault();
-                try {
-                  const res = await fetch("/api/admin/login", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ username: adminUsername, password: adminPasswordInput })
-                  });
-                  const data = await res.json();
-                  if (data.success) {
-                    setIsAdminLoggedIn(true);
-                    setAdminSystemPassword(adminPasswordInput);
-                    try {
-                      sessionStorage.setItem("isAdminLoggedIn", "true");
-                      sessionStorage.setItem("adminSystemPassword", adminPasswordInput);
-                    } catch (e) {
-                      console.error(e);
+              <form
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  try {
+                    const res = await fetch("/api/admin/login", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        username: adminUsername,
+                        password: adminPasswordInput,
+                      }),
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                      setIsAdminLoggedIn(true);
+                      setAdminSystemPassword(adminPasswordInput);
+                      try {
+                        sessionStorage.setItem("isAdminLoggedIn", "true");
+                        sessionStorage.setItem(
+                          "adminSystemPassword",
+                          adminPasswordInput,
+                        );
+                      } catch (e) {
+                        console.error(e);
+                      }
+                      showToast(
+                        t("Đăng nhập thành công!", "Sign in successful!"),
+                        "success",
+                      );
+                    } else {
+                      showToast(
+                        data.message ||
+                          t(
+                            "Tên đăng nhập hoặc mật khẩu không đúng.",
+                            "Incorrect username or password.",
+                          ),
+                        "error",
+                      );
                     }
-                    showToast(t("Đăng nhập thành công!", "Sign in successful!"), "success");
-                  } else {
-                    showToast(data.message || t("Tên đăng nhập hoặc mật khẩu không đúng.", "Incorrect username or password."), "error");
+                  } catch (err) {
+                    showToast(
+                      t("Lỗi kết nối máy chủ.", "Server connection error."),
+                      "error",
+                    );
                   }
-                } catch (err) {
-                  showToast(t("Lỗi kết nối máy chủ.", "Server connection error."), "error");
-                }
-              }} className="space-y-4">
+                }}
+                className="space-y-4"
+              >
                 <div>
                   <label className="block text-[10px] font-bold text-slate-600 mb-1.5 uppercase tracking-wider">
                     {t("Tên đăng nhập", "Username")}
@@ -3535,14 +4427,17 @@ Email nhận hóa đơn: ${activeCompany.email || ""}${activeCompany.bankAccount
         {route === "globalAdmin" && isAdminLoggedIn && (
           <div className="flex-1 flex flex-col items-center justify-center p-6 bg-slate-50 min-h-[calc(100vh-140px)] border-t border-slate-100">
             <div className="max-w-xl w-full bg-white rounded-2xl p-6 md:p-8 shadow-xl border border-slate-200">
-              <h2 className="text-xl font-bold mb-6 text-slate-800 border-b border-slate-100 pb-4">{t("Cài đặt Website tổng", "Site Administration")}</h2>
-              
+              <h2 className="text-xl font-bold mb-6 text-slate-800 border-b border-slate-100 pb-4">
+                {t("Cài đặt Website tổng", "Site Administration")}
+              </h2>
+
               <div className="space-y-6 mb-6">
-                
                 {/* 1. KHỐI CẤU HÌNH CHUNG & THƯƠNG HIỆU */}
                 <div className="p-4 bg-slate-50 border border-slate-200/60 rounded-2xl space-y-4">
                   <div className="flex items-center gap-2 border-b border-slate-150 pb-2 mb-2">
-                    <span className="text-sm font-bold text-slate-800">1. {t("Cấu hình Chung", "General Settings")}</span>
+                    <span className="text-sm font-bold text-slate-800">
+                      1. {t("Cấu hình Chung", "General Settings")}
+                    </span>
                   </div>
 
                   {/* Logo System Uploader */}
@@ -3553,7 +4448,13 @@ Email nhận hóa đơn: ${activeCompany.email || ""}${activeCompany.bankAccount
                     <div className="flex items-center gap-4">
                       <div className="w-14 h-14 bg-white border border-slate-200 rounded-xl flex items-center justify-center overflow-hidden shrink-0 shadow-sm">
                         {siteLogo ? (
-                          <img src={siteLogo} alt="Site Logo" className="max-w-full max-h-full object-contain" referrerPolicy="no-referrer"  crossOrigin="anonymous" />
+                          <img
+                            src={siteLogo}
+                            alt="Site Logo"
+                            className="max-w-full max-h-full object-contain"
+                            referrerPolicy="no-referrer"
+                            crossOrigin="anonymous"
+                          />
                         ) : (
                           <Building2 size={24} className="text-slate-450" />
                         )}
@@ -3562,11 +4463,11 @@ Email nhận hóa đơn: ${activeCompany.email || ""}${activeCompany.bankAccount
                         <div className="flex gap-2">
                           <label className="bg-white border border-slate-250 text-slate-700 hover:bg-slate-50 text-[11px] font-bold px-3 py-1.5 rounded-lg cursor-pointer transition-all active:scale-[0.98] shadow-sm">
                             {t("Tải logo lên", "Upload Logo")}
-                            <input 
-                              type="file" 
-                              accept="image/*" 
+                            <input
+                              type="file"
+                              accept="image/*"
                               className="hidden"
-                              onChange={handleSiteLogoUpload} 
+                              onChange={handleSiteLogoUpload}
                             />
                           </label>
                           {siteLogo && (
@@ -3586,7 +4487,10 @@ Email nhận hóa đơn: ${activeCompany.email || ""}${activeCompany.bankAccount
                             </button>
                           )}
                         </div>
-                        <p className="text-[9px] text-slate-450 font-medium">PNG, JPG hoặc SVG tối đa 2MB. Logo co giãn, hiển thị tối ưu trên Header.</p>
+                        <p className="text-[9px] text-slate-450 font-medium">
+                          PNG, JPG hoặc SVG tối đa 2MB. Logo co giãn, hiển thị
+                          tối ưu trên Header.
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -3594,16 +4498,22 @@ Email nhận hóa đơn: ${activeCompany.email || ""}${activeCompany.bankAccount
                   {/* Base URL configuration field */}
                   <div>
                     <label className="block text-[10px] font-bold text-slate-550 mb-1.5 uppercase tracking-wider">
-                      {t("Địa chỉ gốc của trang (Base URL)", "Site Base Domain")}
+                      {t(
+                        "Địa chỉ gốc của trang (Base URL)",
+                        "Site Base Domain",
+                      )}
                     </label>
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       className="w-full text-sm font-mono border border-slate-200 rounded-xl p-3 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors text-slate-800"
                       value={globalBaseUrl}
                       onChange={(e) => setGlobalBaseUrl(e.target.value)}
                       placeholder={`https://${appDomain}/vat`}
                     />
-                    <p className="text-[10px] text-slate-450 mt-1 font-medium">Phục vụ xuất Excel hoặc sinh mã QR hoá đơn (Ví dụ: https://{appDomain}/vat)</p>
+                    <p className="text-[10px] text-slate-450 mt-1 font-medium">
+                      Phục vụ xuất Excel hoặc sinh mã QR hoá đơn (Ví dụ:
+                      https://{appDomain}/vat)
+                    </p>
                   </div>
 
                   {/* Favicon Settings Section */}
@@ -3615,21 +4525,29 @@ Email nhận hóa đơn: ${activeCompany.email || ""}${activeCompany.bankAccount
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 bg-white border border-slate-200 rounded-lg flex items-center justify-center overflow-hidden shrink-0 shadow-sm p-1.5">
                           {globalFaviconUrl ? (
-                            <img src={globalFaviconUrl} alt="Favicon" className="max-w-full max-h-full object-contain" referrerPolicy="no-referrer"  crossOrigin="anonymous" />
+                            <img
+                              src={globalFaviconUrl}
+                              alt="Favicon"
+                              className="max-w-full max-h-full object-contain"
+                              referrerPolicy="no-referrer"
+                              crossOrigin="anonymous"
+                            />
                           ) : (
                             <ImageIcon size={18} className="text-slate-400" />
                           )}
                         </div>
                         <div className="flex-1">
                           <div className="flex gap-1.5">
-                            <label className={`bg-white border text-slate-700 hover:bg-slate-50 text-[10px] font-extrabold px-2.5 py-1.5 rounded cursor-pointer transition-all active:scale-[0.98] shadow-sm uppercase tracking-wide ${useLogoAsFavicon ? 'opacity-50 border-slate-200 pointer-events-none' : 'border-slate-250'}`}>
+                            <label
+                              className={`bg-white border text-slate-700 hover:bg-slate-50 text-[10px] font-extrabold px-2.5 py-1.5 rounded cursor-pointer transition-all active:scale-[0.98] shadow-sm uppercase tracking-wide ${useLogoAsFavicon ? "opacity-50 border-slate-200 pointer-events-none" : "border-slate-250"}`}
+                            >
                               Chọn ảnh
-                              <input 
-                                type="file" 
-                                accept="image/*" 
-                                className="hidden" 
+                              <input
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
                                 disabled={useLogoAsFavicon}
-                                onChange={handleGlobalFaviconUpload} 
+                                onChange={handleGlobalFaviconUpload}
                               />
                             </label>
                             {globalFaviconUrl && (
@@ -3661,9 +4579,15 @@ Email nhận hóa đơn: ${activeCompany.email || ""}${activeCompany.bankAccount
                               if (checked) {
                                 if (siteLogo) {
                                   setGlobalFaviconUrl(siteLogo);
-                                  showToast("Đã đồng bộ Favicon với Logo của trang!", "success");
+                                  showToast(
+                                    "Đã đồng bộ Favicon với Logo của trang!",
+                                    "success",
+                                  );
                                 } else {
-                                  showToast("Vui lòng tải Logo của trang lên trước.", "error");
+                                  showToast(
+                                    "Vui lòng tải Logo của trang lên trước.",
+                                    "error",
+                                  );
                                   setUseLogoAsFavicon(false);
                                 }
                               } else {
@@ -3672,7 +4596,9 @@ Email nhận hóa đơn: ${activeCompany.email || ""}${activeCompany.bankAccount
                             }}
                             className="w-3.5 h-3.5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
                           />
-                          <span className="text-[10px] text-slate-600 font-bold">Dùng luôn logo</span>
+                          <span className="text-[10px] text-slate-600 font-bold">
+                            Dùng luôn logo
+                          </span>
                         </label>
                       </div>
                     </div>
@@ -3682,7 +4608,9 @@ Email nhận hóa đơn: ${activeCompany.email || ""}${activeCompany.bankAccount
                 {/* 2. KHỐI CẤU HÌNH SEO & HEADER */}
                 <div className="p-4 bg-slate-50 border border-slate-200/60 rounded-2xl space-y-4">
                   <div className="flex items-center gap-2 border-b border-slate-150 pb-2 mb-2">
-                    <span className="text-sm font-bold text-slate-800">2. {t("Cấu hình SEO & Header", "SEO & Header Settings")}</span>
+                    <span className="text-sm font-bold text-slate-800">
+                      2. {t("Cấu hình SEO & Header", "SEO & Header Settings")}
+                    </span>
                   </div>
 
                   {/* Page Title SEO configuration field */}
@@ -3690,14 +4618,17 @@ Email nhận hóa đơn: ${activeCompany.email || ""}${activeCompany.bankAccount
                     <label className="block text-[10px] font-bold text-indigo-650 mb-1.5 uppercase tracking-wider font-sans">
                       Cấu hình Tiêu đề Website riêng (Page Title SEO)
                     </label>
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       className="w-full text-sm border border-slate-200 rounded-xl p-3 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors font-medium text-slate-850"
                       value={globalSeoTitle}
                       onChange={(e) => setGlobalSeoTitle(e.target.value)}
                       placeholder="Tạo trang thông tin xuất hóa đơn VAT"
                     />
-                    <p className="text-[10px] text-slate-455 mt-1 font-medium">Tiêu đề chính hiển thị trên tab trình duyệt (Mặc định: Tạo trang thông tin xuất hóa đơn VAT)</p>
+                    <p className="text-[10px] text-slate-455 mt-1 font-medium">
+                      Tiêu đề chính hiển thị trên tab trình duyệt (Mặc định: Tạo
+                      trang thông tin xuất hóa đơn VAT)
+                    </p>
                   </div>
 
                   {/* Brand Header Name configuration field */}
@@ -3705,14 +4636,17 @@ Email nhận hóa đơn: ${activeCompany.email || ""}${activeCompany.bankAccount
                     <label className="block text-[10px] font-bold text-slate-550 mb-1.5 uppercase tracking-wider font-sans">
                       Tên hiển thị góc trái Header (Brand Name)
                     </label>
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       className="w-full text-sm border border-slate-200 rounded-xl p-3 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors font-medium text-slate-800"
                       value={siteTitle}
                       onChange={(e) => setSiteTitle(e.target.value)}
                       placeholder={appDomain}
                     />
-                    <p className="text-[10px] text-slate-455 mt-1 font-medium">Tên thương hiệu chữ in hoa góc trái của thanh Header (Mặc định: {appDomain})</p>
+                    <p className="text-[10px] text-slate-455 mt-1 font-medium">
+                      Tên thương hiệu chữ in hoa góc trái của thanh Header (Mặc
+                      định: {appDomain})
+                    </p>
                   </div>
 
                   {/* Header Subtitle configuration field */}
@@ -3720,82 +4654,120 @@ Email nhận hóa đơn: ${activeCompany.email || ""}${activeCompany.bankAccount
                     <label className="block text-[10px] font-bold text-slate-550 mb-1.5 uppercase tracking-wider">
                       {t("Slogan / Tagline Header Website", "Header Tagline")}
                     </label>
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       className="w-full text-sm border border-slate-200 rounded-xl p-3 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors font-medium text-slate-800"
                       value={siteSubtitle}
                       onChange={(e) => setSiteSubtitle(e.target.value)}
-                      placeholder={t("Giải pháp cho doanh nghiệp", "Solutions for businesses")}
+                      placeholder={t(
+                        "Giải pháp cho doanh nghiệp",
+                        "Solutions for businesses",
+                      )}
                     />
-                    <p className="text-[10px] text-slate-450 mt-1 font-medium">Lời giới thiệu phụ hiển thị dưới Logo (Mặc định: Giải pháp cho doanh nghiệp)</p>
+                    <p className="text-[10px] text-slate-450 mt-1 font-medium">
+                      Lời giới thiệu phụ hiển thị dưới Logo (Mặc định: Giải pháp
+                      cho doanh nghiệp)
+                    </p>
                   </div>
 
                   {/* Header Link configuration field */}
                   <div>
                     <label className="block text-[10px] font-bold text-slate-550 mb-1.5 uppercase tracking-wider">
-                      {t("Đường dẫn liên kết logo/tiêu đề Header", "Header Brand Destination Link")}
+                      {t(
+                        "Đường dẫn liên kết logo/tiêu đề Header",
+                        "Header Brand Destination Link",
+                      )}
                     </label>
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       className="w-full text-sm border border-slate-200 rounded-xl p-3 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors font-mono text-slate-850"
                       value={headerLink}
                       onChange={(e) => setHeaderLink(e.target.value)}
                       placeholder="https://example.com"
                     />
-                    <p className="text-[10px] text-slate-450 mt-1 font-medium">Đường dẫn khi click vào Brand Logo/Title góc trái (Để trống sẽ tải lại trang chủ)</p>
+                    <p className="text-[10px] text-slate-450 mt-1 font-medium">
+                      Đường dẫn khi click vào Brand Logo/Title góc trái (Để
+                      trống sẽ tải lại trang chủ)
+                    </p>
                   </div>
                 </div>
 
                 {/* 3. KHỐI CẤU HÌNH FOOTER (CHÂN TRANG) */}
                 <div className="p-4 bg-slate-50 border border-slate-200/60 rounded-2xl space-y-4">
                   <div className="flex items-center gap-2 border-b border-slate-150 pb-2 mb-2">
-                    <span className="text-sm font-bold text-slate-800">3. {t("Cấu hình Footer (Chân trang)", "Footer Settings")}</span>
+                    <span className="text-sm font-bold text-slate-800">
+                      3. {t("Cấu hình Footer (Chân trang)", "Footer Settings")}
+                    </span>
                   </div>
 
                   {/* Footer Text configuration field */}
                   <div>
                     <label className="block text-[10px] font-bold text-slate-550 mb-1.5 uppercase tracking-wider">
-                      {t("Nội dung chân trang (Footer Text)", "Footer Credit Text")}
+                      {t(
+                        "Nội dung chân trang (Footer Text)",
+                        "Footer Credit Text",
+                      )}
                     </label>
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       className="w-full text-sm border border-slate-200 rounded-xl p-3 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors font-medium text-slate-800"
                       value={footerText}
                       onChange={(e) => setFooterText(e.target.value)}
-                      placeholder={t(`${appDomain}, Giải pháp cho doanh nghiệp.`, `${appDomain}, Solutions for businesses.`)}
+                      placeholder={t(
+                        `${appDomain}, Giải pháp cho doanh nghiệp.`,
+                        `${appDomain}, Solutions for businesses.`,
+                      )}
                     />
-                    <p className="text-[10px] text-slate-450 mt-1 font-medium">Text hiển thị dưới chân trang (Mặc định: {appDomain}, Giải pháp cho doanh nghiệp.)</p>
+                    <p className="text-[10px] text-slate-450 mt-1 font-medium">
+                      Text hiển thị dưới chân trang (Mặc định: {appDomain}, Giải
+                      pháp cho doanh nghiệp.)
+                    </p>
                   </div>
 
                   {/* Footer Link configuration field */}
                   <div>
                     <label className="block text-[10px] font-bold text-slate-550 mb-1.5 uppercase tracking-wider">
-                      {t("Đường dẫn khi click vào Footer Text", "Footer Credit Destination Link")}
+                      {t(
+                        "Đường dẫn khi click vào Footer Text",
+                        "Footer Credit Destination Link",
+                      )}
                     </label>
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       className="w-full text-sm border border-slate-200 rounded-xl p-3 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors font-mono text-slate-850"
                       value={footerLink}
                       onChange={(e) => setFooterLink(e.target.value)}
                       placeholder="https://example.com"
                     />
-                    <p className="text-[10px] text-slate-450 mt-1 font-medium">Đường dẫn khi click vào Footer Text dưới cùng (Để trống sẽ tải lại trang chủ)</p>
+                    <p className="text-[10px] text-slate-450 mt-1 font-medium">
+                      Đường dẫn khi click vào Footer Text dưới cùng (Để trống sẽ
+                      tải lại trang chủ)
+                    </p>
                   </div>
 
                   {/* Footer Secondary Links dynamic block */}
                   <div className="border-t border-slate-200/60 pt-4">
                     <div className="flex items-center justify-between mb-3">
                       <label className="block text-[10px] font-bold text-slate-700 uppercase tracking-wider">
-                        {t("Đường dẫn phụ dưới chân trang", "Secondary Footer Links")}
+                        {t(
+                          "Đường dẫn phụ dưới chân trang",
+                          "Secondary Footer Links",
+                        )}
                       </label>
                       <button
                         type="button"
                         onClick={() => {
-                          setFooterSecondaryLinks([...footerSecondaryLinks, { text: "", url: "" }]);
+                          setFooterSecondaryLinks([
+                            ...footerSecondaryLinks,
+                            { text: "", url: "" },
+                          ]);
                         }}
                         className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-extrabold text-[11px] px-3 py-1.5 rounded-lg border border-indigo-100 transition-all flex items-center gap-1 cursor-pointer"
                       >
-                        <span className="font-bold text-sm leading-none">+</span> {t("Thêm liên kết", "Add link")}
+                        <span className="font-bold text-sm leading-none">
+                          +
+                        </span>{" "}
+                        {t("Thêm liên kết", "Add link")}
                       </button>
                     </div>
                     {footerSecondaryLinks.length === 0 ? (
@@ -3805,7 +4777,10 @@ Email nhận hóa đơn: ${activeCompany.email || ""}${activeCompany.bankAccount
                     ) : (
                       <div className="space-y-3 max-h-56 overflow-y-auto pr-1">
                         {footerSecondaryLinks.map((item, index) => (
-                          <div key={index} className="flex gap-2 items-center bg-white border border-slate-200 p-2.5 rounded-xl">
+                          <div
+                            key={index}
+                            className="flex gap-2 items-center bg-white border border-slate-200 p-2.5 rounded-xl"
+                          >
                             <div className="flex-1 space-y-1.5">
                               <input
                                 type="text"
@@ -3832,11 +4807,13 @@ Email nhận hóa đơn: ${activeCompany.email || ""}${activeCompany.bankAccount
                                 }}
                               />
                             </div>
-                            
+
                             <button
                               type="button"
                               onClick={() => {
-                                const list = footerSecondaryLinks.filter((_, idx) => idx !== index);
+                                const list = footerSecondaryLinks.filter(
+                                  (_, idx) => idx !== index,
+                                );
                                 setFooterSecondaryLinks(list);
                               }}
                               className="bg-red-50 hover:bg-red-100 text-red-600 border border-red-150 rounded-lg w-8 h-12 flex items-center justify-center shrink-0 transition-colors text-xs font-bold cursor-pointer"
@@ -3865,9 +4842,10 @@ Email nhận hóa đơn: ${activeCompany.email || ""}${activeCompany.bankAccount
                 {/* DANH SÁCH TRANG ĐÃ TẠO */}
                 <div className="mt-6 border-t border-slate-200/60 pt-6">
                   <h3 className="text-sm font-bold text-slate-800 mb-3 block">
-                    {t("Danh sách trang đã tạo", "Created Pages")} ({registeredCompanies.length})
+                    {t("Danh sách trang đã tạo", "Created Pages")} (
+                    {registeredCompanies.length})
                   </h3>
-                  
+
                   {registeredCompanies.length === 0 ? (
                     <p className="text-xs text-slate-450 italic text-center py-4 bg-slate-50 rounded-xl border border-dashed border-slate-200">
                       {t("Chưa có trang nào.", "No pages created yet.")}
@@ -3875,35 +4853,56 @@ Email nhận hóa đơn: ${activeCompany.email || ""}${activeCompany.bankAccount
                   ) : (
                     <div className="space-y-3 max-h-85 overflow-y-auto pr-1">
                       {registeredCompanies.map((co) => (
-                        <div key={co.username} className="flex flex-row items-center justify-between gap-3 bg-slate-50 border border-slate-200 p-3.5 rounded-xl hover:bg-white hover:shadow-sm transition-all duration-200">
+                        <div
+                          key={co.username}
+                          className="flex flex-row items-center justify-between gap-3 bg-slate-50 border border-slate-200 p-3.5 rounded-xl hover:bg-white hover:shadow-sm transition-all duration-200"
+                        >
                           <div className="min-w-0 flex-1">
-                            <p className="text-xs font-bold text-slate-900 line-clamp-1">{co.companyName}</p>
-                            <p className="text-[10px] text-slate-500 font-mono mt-0.5">/{co.username}</p>
+                            <p className="text-xs font-bold text-slate-900 line-clamp-1">
+                              {co.companyName}
+                            </p>
+                            <p className="text-[10px] text-slate-500 font-mono mt-0.5">
+                              /{co.username}
+                            </p>
                           </div>
-                          
+
                           <div className="flex items-center gap-2 shrink-0">
                             {deletingUsername === co.username ? (
                               <div className="flex items-center gap-1.5 bg-red-50 border border-red-150 p-1.5 rounded-lg shrink-0">
-                                <span className="text-[10px] font-bold text-red-700 animate-pulse px-1">Xác nhận?</span>
+                                <span className="text-[10px] font-bold text-red-700 animate-pulse px-1">
+                                  Xác nhận?
+                                </span>
                                 <button
                                   type="button"
                                   onClick={async () => {
                                     try {
-                                      const res = await fetch(`/api/companies/${co.username}`, {
-                                        method: "DELETE",
-                                        headers: { 
-                                          "Content-Type": "application/json",
-                                          "x-admin-password": adminSystemPassword
+                                      const res = await fetch(
+                                        `/api/companies/${co.username}`,
+                                        {
+                                          method: "DELETE",
+                                          headers: {
+                                            "Content-Type": "application/json",
+                                            "x-admin-password":
+                                              adminSystemPassword,
+                                          },
+                                          body: JSON.stringify({
+                                            adminPassword: adminSystemPassword,
+                                          }),
                                         },
-                                        body: JSON.stringify({ adminPassword: adminSystemPassword }),
-                                      });
+                                      );
                                       const json = await res.json();
                                       if (json.success) {
-                                        showToast("Đã xóa trang thành công.", "success");
+                                        showToast(
+                                          "Đã xóa trang thành công.",
+                                          "success",
+                                        );
                                         setDeletingUsername(null);
                                         fetchRegisteredCompanies();
                                       } else {
-                                        showToast("Lỗi: " + json.message, "error");
+                                        showToast(
+                                          "Lỗi: " + json.message,
+                                          "error",
+                                        );
                                       }
                                     } catch (e) {
                                       showToast("Thao tác thất bại.", "error");
@@ -3925,14 +4924,18 @@ Email nhận hóa đơn: ${activeCompany.email || ""}${activeCompany.bankAccount
                               <>
                                 <button
                                   type="button"
-                                  onClick={() => navigateToSlug(co.username, "admin")}
+                                  onClick={() =>
+                                    navigateToSlug(co.username, "admin")
+                                  }
                                   className="text-[10px] uppercase font-extrabold text-indigo-655 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-lg border border-indigo-100 transition-colors cursor-pointer"
                                 >
                                   Tới Admin
                                 </button>
                                 <button
                                   type="button"
-                                  onClick={() => setDeletingUsername(co.username)}
+                                  onClick={() =>
+                                    setDeletingUsername(co.username)
+                                  }
                                   className="text-[10px] uppercase font-extrabold text-red-600 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-lg border border-red-100 transition-colors cursor-pointer"
                                 >
                                   Xóa
@@ -3949,75 +4952,93 @@ Email nhận hóa đơn: ${activeCompany.email || ""}${activeCompany.bankAccount
             </div>
           </div>
         )}
-
       </main>
 
       {/* FOOTER GENERAL INFO */}
       {route !== "view" && (
-      <footer className="bg-white border-t border-slate-100 py-8 px-4 text-center mt-auto">
-        <div className="max-w-6xl mx-auto space-y-4">
-          
-          {/* Main Footer Text with dynamic destination link option */}
-          {footerLink ? (
-            <p className="text-sm font-semibold text-slate-500 hover:text-indigo-600 transition-colors">
-              <a href={footerLink} target="_blank" rel="noopener noreferrer">
-                {footerText || t(`${appDomain}, Giải pháp cho doanh nghiệp.`, `${appDomain}, Solutions for businesses.`)}
-              </a>
-            </p>
-          ) : (
-            <p className="text-sm font-semibold text-slate-500 cursor-pointer hover:text-indigo-600 transition-colors" onClick={navigateToHome}>
-              {footerText || t(`${appDomain}, Giải pháp cho doanh nghiệp.`, `${appDomain}, Solutions for businesses.`)}
-            </p>
-          )}
+        <footer className="bg-white border-t border-slate-100 py-8 px-4 text-center mt-auto">
+          <div className="max-w-6xl mx-auto space-y-4">
+            {/* Main Footer Text with dynamic destination link option */}
+            {footerLink ? (
+              <p className="text-sm font-semibold text-slate-500 hover:text-indigo-600 transition-colors">
+                <a href={footerLink} target="_blank" rel="noopener noreferrer">
+                  {footerText ||
+                    t(
+                      `${appDomain}, Giải pháp cho doanh nghiệp.`,
+                      `${appDomain}, Solutions for businesses.`,
+                    )}
+                </a>
+              </p>
+            ) : (
+              <p
+                className="text-sm font-semibold text-slate-500 cursor-pointer hover:text-indigo-600 transition-colors"
+                onClick={navigateToHome}
+              >
+                {footerText ||
+                  t(
+                    `${appDomain}, Giải pháp cho doanh nghiệp.`,
+                    `${appDomain}, Solutions for businesses.`,
+                  )}
+              </p>
+            )}
 
-          {/* Secondary Footer Links custom list */}
-          {footerSecondaryLinks && footerSecondaryLinks.length > 0 && (
-            <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs text-indigo-600 font-bold border-b border-slate-100 pb-3 mb-2 max-w-xl mx-auto">
-              {footerSecondaryLinks.map((linkItem, idx) => {
-                if (!linkItem.text || !linkItem.url) return null;
-                return (
-                  <a 
-                    key={idx} 
-                    href={linkItem.url} 
-                    target="_blank" 
-                    rel="noopener noreferrer" 
-                    className="hover:text-indigo-800 hover:underline transition-colors"
-                  >
-                    {linkItem.text}
-                  </a>
-                );
-              })}
-            </div>
-          )}
+            {/* Secondary Footer Links custom list */}
+            {footerSecondaryLinks && footerSecondaryLinks.length > 0 && (
+              <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs text-indigo-600 font-bold border-b border-slate-100 pb-3 mb-2 max-w-xl mx-auto">
+                {footerSecondaryLinks.map((linkItem, idx) => {
+                  if (!linkItem.text || !linkItem.url) return null;
+                  return (
+                    <a
+                      key={idx}
+                      href={linkItem.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="hover:text-indigo-800 hover:underline transition-colors"
+                    >
+                      {linkItem.text}
+                    </a>
+                  );
+                })}
+              </div>
+            )}
 
-          <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-3 text-xs text-slate-500 font-medium pt-2">
-            <div className="flex items-center gap-2 bg-slate-50 border border-slate-100 px-4 py-2 rounded-full">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-              <span className="hidden sm:inline">{t("Lượt truy cập hôm nay:", "Visits today:")}</span> <span className="text-slate-800 font-bold ml-1">{Math.floor(Date.now() / 86400000 % 1000) + 1205}</span>
-            </div>
-            <div className="flex items-center gap-2 bg-slate-50 border border-slate-100 px-4 py-2 rounded-full">
-              <Building2 size={12} className="text-indigo-500" />
-              <span className="hidden sm:inline">{t("Số trang đã tạo:", "Total pages:")}</span> <span className="text-slate-800 font-bold ml-1">{registeredCompanies.length}</span>
+            <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-3 text-xs text-slate-500 font-medium pt-2">
+              <div className="flex items-center gap-2 bg-slate-50 border border-slate-100 px-4 py-2 rounded-full">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span className="hidden sm:inline">
+                  {t("Lượt truy cập hôm nay:", "Visits today:")}
+                </span>{" "}
+                <span className="text-slate-800 font-bold ml-1">
+                  {Math.floor((Date.now() / 86400000) % 1000) + 1205}
+                </span>
+              </div>
+              <div className="flex items-center gap-2 bg-slate-50 border border-slate-100 px-4 py-2 rounded-full">
+                <Building2 size={12} className="text-indigo-500" />
+                <span className="hidden sm:inline">
+                  {t("Số trang đã tạo:", "Total pages:")}
+                </span>{" "}
+                <span className="text-slate-800 font-bold ml-1">
+                  {registeredCompanies.length}
+                </span>
+              </div>
             </div>
           </div>
-        </div>
-      </footer>
+        </footer>
       )}
 
       {/* SUPPORT DEVELOPER MODAL */}
       {supportModalOpen && (
-        <div 
+        <div
           className="fixed inset-0 z-55 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in"
           onClick={() => setSupportModalOpen(false)}
         >
-          <div 
+          <div
             className="bg-white rounded-2xl max-w-sm w-full shadow-2xl border border-slate-100 overflow-hidden relative"
             onClick={(e) => e.stopPropagation()}
           >
-            
             {/* Header banner */}
             <div className="p-5 text-white bg-gradient-to-r from-amber-500 to-orange-600 relative">
-              <button 
+              <button
                 onClick={() => setSupportModalOpen(false)}
                 className="absolute top-4 right-4 text-white hover:text-red-100 bg-black/20 hover:bg-black/40 w-8 h-8 flex items-center justify-center rounded-full transition-colors cursor-pointer text-sm font-bold z-10 block"
               >
@@ -4032,7 +5053,7 @@ Email nhận hóa đơn: ${activeCompany.email || ""}${activeCompany.bankAccount
               <p className="text-[11px] text-amber-50 leading-relaxed font-semibold">
                 {t(
                   "Nếu ứng dụng iKey mang lại giá trị cho bạn, hãy gửi một chút năng lượng động viên đội ngũ lập trình nhé!",
-                  "If iKey application brings value to you, please support our software engineering team!"
+                  "If iKey application brings value to you, please support our software engineering team!",
                 )}
               </p>
             </div>
@@ -4041,25 +5062,59 @@ Email nhận hóa đơn: ${activeCompany.email || ""}${activeCompany.bankAccount
             <div className="p-5 space-y-4">
               <div className="grid grid-cols-4 gap-2">
                 {[
-                  { id: "iced_tea", label: t("Trà đá 🧊", "Iced Tea 🧊"), desc: "10K", amount: 10000, theme: "active:bg-amber-100/70 border-amber-200 bg-amber-50/40 text-amber-900" },
-                  { id: "coffee", label: t("Cà phê ☕", "Coffee ☕"), desc: "35K", amount: 35000, theme: "active:bg-orange-100/70 border-orange-200 bg-orange-50/40 text-orange-900" },
-                  { id: "lunch", label: t("Bữa sáng 🍱", "Breakfast 🍱"), desc: "100K", amount: 100000, theme: "active:bg-emerald-100/70 border-emerald-200 bg-emerald-50/40 text-emerald-900" },
-                  { id: "custom", label: t("Tùy tâm ❤️", "Any amt ❤️"), desc: "?", amount: 0, theme: "active:bg-indigo-100/70 border-indigo-200 bg-indigo-50/40 text-indigo-900" }
+                  {
+                    id: "iced_tea",
+                    label: t("Trà đá 🧊", "Iced Tea 🧊"),
+                    desc: "10K",
+                    amount: 10000,
+                    theme:
+                      "active:bg-amber-100/70 border-amber-200 bg-amber-50/40 text-amber-900",
+                  },
+                  {
+                    id: "coffee",
+                    label: t("Cà phê ☕", "Coffee ☕"),
+                    desc: "35K",
+                    amount: 35000,
+                    theme:
+                      "active:bg-orange-100/70 border-orange-200 bg-orange-50/40 text-orange-900",
+                  },
+                  {
+                    id: "lunch",
+                    label: t("Bữa sáng 🍱", "Breakfast 🍱"),
+                    desc: "100K",
+                    amount: 100000,
+                    theme:
+                      "active:bg-emerald-100/70 border-emerald-200 bg-emerald-50/40 text-emerald-900",
+                  },
+                  {
+                    id: "custom",
+                    label: t("Tùy tâm ❤️", "Any amt ❤️"),
+                    desc: "?",
+                    amount: 0,
+                    theme:
+                      "active:bg-indigo-100/70 border-indigo-200 bg-indigo-50/40 text-indigo-900",
+                  },
                 ].map((pkg) => {
-                  const isSelected = (pkg.amount === 0 && supportAmount === 0) || (pkg.amount !== 0 && supportAmount === pkg.amount);
+                  const isSelected =
+                    (pkg.amount === 0 && supportAmount === 0) ||
+                    (pkg.amount !== 0 && supportAmount === pkg.amount);
                   return (
                     <button
                       key={pkg.id}
                       type="button"
                       onClick={() => setSupportAmount(pkg.amount)}
                       className={`flex flex-col items-center justify-center p-2 text-center rounded-xl border transition-all cursor-pointer ${
-                        isSelected 
-                          ? "border-amber-500 bg-amber-100/70 ring-2 ring-amber-400 font-extrabold scale-102" 
+                        isSelected
+                          ? "border-amber-500 bg-amber-100/70 ring-2 ring-amber-400 font-extrabold scale-102"
                           : `${pkg.theme} opacity-85 hover:opacity-100 border-dashed hover:border-solid`
                       }`}
                     >
-                      <span className="text-[9px] sm:text-[10px] font-black leading-tight mb-0.5">{pkg.label}</span>
-                      <span className="text-[10px] sm:text-xs font-black">{pkg.desc}</span>
+                      <span className="text-[9px] sm:text-[10px] font-black leading-tight mb-0.5">
+                        {pkg.label}
+                      </span>
+                      <span className="text-[10px] sm:text-xs font-black">
+                        {pkg.desc}
+                      </span>
                     </button>
                   );
                 })}
@@ -4067,17 +5122,19 @@ Email nhận hóa đơn: ${activeCompany.email || ""}${activeCompany.bankAccount
 
               {supportAmount === 0 && (
                 <div className="flex bg-white items-center gap-2 border-2 border-indigo-200 focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-100 rounded-xl px-3 py-2 transition-all">
-                  <span className="text-sm font-semibold text-slate-500">VNĐ</span>
-                  <input 
+                  <span className="text-sm font-semibold text-slate-500">
+                    VNĐ
+                  </span>
+                  <input
                     type="number"
                     min="1000"
                     placeholder="Nhập số tiền..."
                     className="w-full text-base font-bold bg-transparent outline-none border-none text-slate-900"
                     onChange={(e) => {
-                       const val = parseInt(e.target.value, 10);
-                       if (!isNaN(val)) {
-                         setSupportAmount(val);
-                       }
+                      const val = parseInt(e.target.value, 10);
+                      if (!isNaN(val)) {
+                        setSupportAmount(val);
+                      }
                     }}
                   />
                 </div>
@@ -4086,13 +5143,16 @@ Email nhận hóa đơn: ${activeCompany.email || ""}${activeCompany.bankAccount
               {/* Bank Transfer Details with Scannable QR Code */}
               <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 flex flex-col items-center justify-center space-y-3">
                 <p className="text-[9px] font-extrabold text-slate-450 uppercase tracking-wider text-center">
-                  {t("Quét mã QR qua mọi ứng dụng Ngân hàng", "Scan QR via your VietQR mobile banking app")}
+                  {t(
+                    "Quét mã QR qua mọi ứng dụng Ngân hàng",
+                    "Scan QR via your VietQR mobile banking app",
+                  )}
                 </p>
-                
+
                 {/* Dynamically display VietQR using the dynamic VietQR api to make it completely working and functional! */}
                 <div className="bg-white p-2.5 rounded-xl border border-slate-200 shadow-md transform scale-105">
-                  <img 
-                    src={`https://img.vietqr.io/image/vietcombank-9856600666-compact.png?amount=${supportAmount === 0 ? '' : supportAmount}&addInfo=${encodeURIComponent(supportAmount === 10000 ? "Ung ho tra da" : supportAmount === 35000 ? "Ung ho ca phe" : supportAmount === 100000 ? "Ung ho bua sang" : "Ung ho ikey")}&accountName=NGUYEN%20XUAN%20TAI`} 
+                  <img
+                    src={`https://img.vietqr.io/image/vietcombank-9856600666-compact.png?amount=${supportAmount === 0 ? "" : supportAmount}&addInfo=${encodeURIComponent(supportAmount === 10000 ? "Ung ho tra da" : supportAmount === 35000 ? "Ung ho ca phe" : supportAmount === 100000 ? "Ung ho bua sang" : "Ung ho ikey")}&accountName=NGUYEN%20XUAN%20TAI`}
                     alt="VietQR dynamic support"
                     className="w-40 h-40 object-contain mx-auto"
                     referrerPolicy="no-referrer"
@@ -4100,14 +5160,22 @@ Email nhận hóa đơn: ${activeCompany.email || ""}${activeCompany.bankAccount
                 </div>
 
                 <div className="text-center space-y-0.5">
-                  <p className="text-xs font-black text-slate-800">Vietcombank</p>
-                  <p className="text-base font-black text-indigo-650 font-mono tracking-tight">9856600666</p>
+                  <p className="text-xs font-black text-slate-800">
+                    Vietcombank
+                  </p>
+                  <p className="text-base font-black text-indigo-650 font-mono tracking-tight">
+                    9856600666
+                  </p>
                   <p className="text-[10px] text-slate-500 font-extrabold uppercase tracking-tight">
-                    {t("Chủ tài khoản", "Beneficiary")}: <span className="text-slate-700">NGUYEN XUAN TAI</span>
+                    {t("Chủ tài khoản", "Beneficiary")}:{" "}
+                    <span className="text-slate-700">NGUYEN XUAN TAI</span>
                   </p>
                   {supportAmount > 0 ? (
                     <p className="text-[9px] px-2 mt-1 bg-indigo-50 border border-indigo-100 text-indigo-700 rounded-full font-mono inline-block font-semibold">
-                      {t(`Ủng hộ: ${supportAmount.toLocaleString("vi-VN")}đ`, `Donating: ${supportAmount.toLocaleString("en-US")} VND`)}
+                      {t(
+                        `Ủng hộ: ${supportAmount.toLocaleString("vi-VN")}đ`,
+                        `Donating: ${supportAmount.toLocaleString("en-US")} VND`,
+                      )}
                     </p>
                   ) : (
                     <p className="text-[9px] px-2 mt-1 bg-amber-50 border border-amber-100 text-amber-700 rounded-full font-mono inline-block font-semibold">
@@ -4116,12 +5184,10 @@ Email nhận hóa đơn: ${activeCompany.email || ""}${activeCompany.bankAccount
                   )}
                 </div>
               </div>
-
             </div>
           </div>
         </div>
       )}
-
     </div>
   );
 }
