@@ -2050,8 +2050,8 @@ export default function App() {
                     onDragOver={handleDragOverScan}
                     onDragLeave={handleDragLeaveScan}
                   >
-                    <div className="relative flex-1 flex items-center pl-3">
-                      <Search className="text-slate-400 shrink-0" size={18} />
+                    <div className="flex-1 flex items-center pr-1 transition-all">
+                      <Search className="text-slate-400 shrink-0 ml-3 mr-2" size={18} />
                       <input
                         type="text"
                         placeholder={t(
@@ -2060,11 +2060,11 @@ export default function App() {
                         )}
                         value={searchQuery}
                         onChange={(e) => handleHeroSearchChange(e.target.value)}
-                        className="w-full text-sm py-2.5 px-2 bg-transparent focus:outline-none placeholder-slate-400 font-semibold cursor-text"
+                        className="w-full text-sm py-2.5 bg-transparent focus:outline-none placeholder-slate-400 font-semibold cursor-text min-w-0"
                       />
-                      <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                      <div className="flex items-center gap-1 shrink-0">
                         {smartSearchLoading && (
-                          <span className="w-4 h-4 border-2 border-indigo-200 border-t-indigo-650 rounded-full animate-spin block"></span>
+                          <span className="w-4 h-4 border-2 border-indigo-200 border-t-indigo-650 rounded-full animate-spin block mr-1"></span>
                         )}
                         <input
                           type="file"
@@ -2076,7 +2076,7 @@ export default function App() {
                         />
                         <label
                           htmlFor="ai-scan-upload"
-                          className={`p-1.5 rounded-md hover:bg-slate-100 text-slate-400 hover:text-indigo-600 transition-colors ${aiScanning ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                          className={`flex items-center justify-center p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-indigo-600 transition-colors ${aiScanning ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
                           title="Tải ảnh lên để AI quét MST"
                         >
                           <Scan size={18} className={aiScanning ? "animate-pulse text-indigo-600" : ""} />
@@ -2762,7 +2762,7 @@ export default function App() {
                           type="checkbox"
                           checked={regIsPublic}
                           onChange={(e) => setRegIsPublic(e.target.checked)}
-                          className="peer sr-only"
+                          className="peer absolute opacity-0 w-0 h-0"
                         />
                         <div className="w-10 h-5 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-100 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
                       </label>
@@ -4376,7 +4376,7 @@ Email nhận hóa đơn: ${activeCompany.email || ""}${activeCompany.bankAccount
                                 type="checkbox"
                                 checked={editIsPublic}
                                 onChange={(e) => setEditIsPublic(e.target.checked)}
-                                className="peer sr-only"
+                                className="peer absolute opacity-0 w-0 h-0"
                               />
                               <div className="w-10 h-5 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-100 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
                             </label>

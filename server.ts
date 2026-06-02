@@ -628,7 +628,7 @@ app.post("/api/scan-image", async (req, res) => {
     if (!imageBase64) return res.status(400).json({ error: "Missing image data" });
 
     if (!process.env.GEMINI_API_KEY) {
-      return res.status(500).json({ error: "GEMINI_API_KEY is not configured on the server." });
+      return res.status(500).json({ success: false, message: "Hệ thống chưa thiết lập API Key của Gemini. Vui lòng liên hệ quản trị viên." });
     }
 
     const ai = new GoogleGenAI({
