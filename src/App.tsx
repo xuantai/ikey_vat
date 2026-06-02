@@ -1089,6 +1089,39 @@ export default function App() {
     checkUsernameAvailability(tempUsername);
   };
 
+  const guessAndSetLogoAndDomain = (companyName: string, companyEmail?: string, companyDomain?: string, companyTaxCode?: string) => {
+    let domainToUse = companyDomain;
+    if (!domainToUse && companyEmail && companyEmail.includes('@')) {
+      const emailDomain = companyEmail.split('@')[1];
+      if (emailDomain !== 'gmail.com' && emailDomain !== 'yahoo.com' && emailDomain !== 'hotmail.com' && emailDomain !== 'outlook.com') {
+        domainToUse = emailDomain;
+      }
+    }
+
+    if (!domainToUse) {
+      const lowerName = (companyName || '').toLowerCase();
+      const tc = companyTaxCode ? companyTaxCode.replace(/[^0-9]/g, "") : "";
+      
+      if (tc === "0100109106" || lowerName.includes('viettel') || lowerName.includes('viễn thông quân đội')) domainToUse = 'viettel.com.vn';
+      else if (tc === "0101245486" || lowerName.includes('vingroup')) domainToUse = 'vingroup.net';
+      else if (tc === "0101248141" || lowerName.includes('fpt')) domainToUse = 'fpt.com.vn';
+      else if (tc === "0100112437" || lowerName.includes('vietcombank') || lowerName.includes('ngoại thương việt nam') || lowerName.includes('vcb')) domainToUse = 'vietcombank.com.vn';
+      else if (tc.startsWith("0313980000") || lowerName.includes('momo') || lowerName.includes('dịch vụ di động trực tuyến')) domainToUse = 'momo.vn';
+      else if (tc === "0106869738" || lowerName.includes('vnpt')) domainToUse = 'vnpt.vn';
+      else if (tc === "0106773786" || lowerName.includes('shopee')) domainToUse = 'shopee.vn';
+      else if (tc === "0100150619" || lowerName.includes('bidv') || lowerName.includes('đầu tư và phát triển')) domainToUse = 'bidv.com.vn';
+      else if (tc === "0100283873" || lowerName.includes('mbbank') || lowerName.includes('mb bank') || lowerName.includes('quân đội')) domainToUse = 'mbbank.com.vn';
+      else if (tc === "0100230800" || lowerName.includes('techcombank') || lowerName.includes('kỹ thương')) domainToUse = 'techcombank.com';
+    }
+
+    if (domainToUse) {
+      const cleanDomain = domainToUse.toLowerCase().replace(/^https?:\/\//i, '').replace(/\/.*$/, '').trim();
+      if (cleanDomain.includes('.')) {
+        setRegLogoUrl(`https://logo.clearbit.com/${cleanDomain}`);
+      }
+    }
+  };
+
   // Lookup corporate details automatically from tax code (MST)
   const lookupTaxCode = async (mst: string) => {
     if (!mst) return;
@@ -1112,6 +1145,8 @@ export default function App() {
         setRegAddress(formattedAddress);
         setTempCompanyName(titleCaseName);
         setTempAddress(formattedAddress);
+        
+        guessAndSetLogoAndDomain(titleCaseName, undefined, undefined, cleanMst);
 
         showToast("Tự động điền dữ liệu công ty thành công!", "success");
       } else {
@@ -1129,6 +1164,7 @@ export default function App() {
           setRegAddress(formattedAddress);
           setTempCompanyName(titleCaseName);
           setTempAddress(formattedAddress);
+          guessAndSetLogoAndDomain(titleCaseName, undefined, undefined, cleanMst);
 
           showToast("Tự động điền dữ liệu công ty thành công!", "success");
         } else {
@@ -1154,6 +1190,7 @@ export default function App() {
           setRegAddress(formattedAddress);
           setTempCompanyName(titleCaseName);
           setTempAddress(formattedAddress);
+          guessAndSetLogoAndDomain(titleCaseName, undefined, undefined, cleanMst);
 
           showToast("Tự động điền dữ liệu công ty thành công!", "success");
         } else {
@@ -1257,34 +1294,7 @@ export default function App() {
       setRegEmail(company.email);
     }
 
-    let domainToUse = company.domain;
-    if (!domainToUse && company.email && company.email.includes('@')) {
-      const emailDomain = company.email.split('@')[1];
-      if (emailDomain !== 'gmail.com' && emailDomain !== 'yahoo.com' && emailDomain !== 'hotmail.com' && emailDomain !== 'outlook.com') {
-        domainToUse = emailDomain;
-      }
-    }
-
-    if (!domainToUse) {
-      const lowerName = (company.name || '').toLowerCase();
-      if (lowerName.includes('viettel')) domainToUse = 'viettel.com.vn';
-      else if (lowerName.includes('vingroup')) domainToUse = 'vingroup.net';
-      else if (lowerName.includes('fpt')) domainToUse = 'fpt.com.vn';
-      else if (lowerName.includes('vietcombank') || lowerName.includes('vcb')) domainToUse = 'vietcombank.com.vn';
-      else if (lowerName.includes('momo')) domainToUse = 'momo.vn';
-      else if (lowerName.includes('vnpt')) domainToUse = 'vnpt.vn';
-      else if (lowerName.includes('shopee')) domainToUse = 'shopee.vn';
-      else if (lowerName.includes('bidv')) domainToUse = 'bidv.com.vn';
-      else if (lowerName.includes('mbbank') || lowerName.includes('mb bank')) domainToUse = 'mbbank.com.vn';
-      else if (lowerName.includes('techcombank')) domainToUse = 'techcombank.com';
-    }
-
-    if (domainToUse) {
-      const cleanDomain = domainToUse.toLowerCase().replace(/^https?:\/\//i, '').replace(/\/.*$/, '').trim();
-      if (cleanDomain.includes('.')) {
-        setRegLogoUrl(`https://logo.clearbit.com/${cleanDomain}`);
-      }
-    }
+    guessAndSetLogoAndDomain(company.name, company.email, company.domain, company.taxCode);
 
     // Auto sync username based on trimmed and clean company name if username is empty or standard template
     if (!tempUsername) {
@@ -2851,19 +2861,20 @@ export default function App() {
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <div className="md:col-span-1 bg-slate-50/50 p-2 rounded-xl border border-slate-200">
-                      <label className="flex items-center justify-center gap-2 p-3 h-full bg-white rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer select-none transition-all shadow-sm min-h-[50px]">
-                        <input
-                          type="checkbox"
-                          checked={regIsPublic}
-                          onChange={(e) => setRegIsPublic(e.target.checked)}
-                          className="w-4 h-4 shrink-0 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500 cursor-pointer accent-indigo-600"
-                        />
-                        <span className="text-[11px] font-black text-slate-700 uppercase tracking-widest whitespace-nowrap">
-                          {regIsPublic ? t("Công Khai", "Public") : t("Riêng tư", "Private")}
-                        </span>
-                      </label>
-                    </div>
+                    <label className="md:col-span-1 flex items-center justify-between gap-2 p-4 h-full bg-white hover:bg-slate-50 rounded-xl border border-slate-200 cursor-pointer select-none transition-all shadow-sm min-h-[60px]">
+                      <span className="text-[11px] font-black text-slate-700 uppercase tracking-widest whitespace-nowrap">
+                        {regIsPublic ? t("Công Khai", "Public") : t("Riêng tư", "Private")}
+                      </span>
+                      <div className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full transition-colors duration-200 ease-in-out ${regIsPublic ? 'bg-indigo-600' : 'bg-slate-300'}`}>
+                        <span aria-hidden="true" className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${regIsPublic ? 'translate-x-5' : 'translate-x-[2px]'}`} />
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={regIsPublic}
+                        onChange={(e) => setRegIsPublic(e.target.checked)}
+                        className="sr-only"
+                      />
+                    </label>
 
                     {/* Captcha Verify */}
                     <div className="md:col-span-3 bg-amber-50 p-4 rounded-xl border border-amber-100 flex items-center justify-between gap-4">

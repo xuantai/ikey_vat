@@ -688,8 +688,8 @@ app.post("/api/scan-image", async (req, res) => {
         }
       });
     } catch (err: any) {
-      if (err.status === 503 || err.message?.includes("503") || err.message?.includes("UNAVAILABLE") || err.message?.includes("high demand")) {
-        console.warn("gemini-2.5-flash unavailable, falling back to gemini-2.0-flash");
+      if (err.status === 503 || err.status === 429 || err.message?.includes("503") || err.message?.includes("429") || err.message?.includes("UNAVAILABLE") || err.message?.includes("RESOURCE_EXHAUSTED") || err.message?.includes("high demand")) {
+        console.warn("gemini-2.5-flash unavailable or quota exceeded, falling back to gemini-2.0-flash");
         response = await ai.models.generateContent({
           model: "gemini-2.0-flash",
           contents: { parts: [imagePart, textPart] },
