@@ -814,7 +814,7 @@ async function startServer() {
       const ogUrl = `${baseUrl}${req.originalUrl}`;
 
       if (isPotentialUsername && company) {
-        title = `${company.companyName} - Thông Tin Xuất Hóa Đơn và Chuyển Khoản VAT`;
+        title = company.websiteTitle || `${company.companyName} - Thông tin xuất hóa đơn`;
         const companyDetails = [];
         if (company.taxCode) companyDetails.push(`Mã số thuế: ${company.taxCode}`);
         if (company.address) companyDetails.push(`Địa chỉ: ${company.address}`);
@@ -823,14 +823,22 @@ async function startServer() {
         
         description = `Chi tiết thông tin xuất hóa đơn VAT và tài khoản nhận thanh toán của ${company.companyName}. ${companyDetails.join(". ")}`;
         
-        const screenshotUrl = `https://api.microlink.io?url=${encodeURIComponent(`${baseUrl}/${company.username}`)}&screenshot=true&embed=screenshot.url`;
-        image = company.thumbnailUrl || company.logoUrl || screenshotUrl || siteLogo || `${baseUrl}/default-thumb.png`;
+        // Prioritize custom thumbnail or company logo (non-base64), fallback to pixel-perfect screenshot
+        let ogImageCandidate = "";
+        if (company.thumbnailUrl && !company.thumbnailUrl.startsWith("data:")) {
+          ogImageCandidate = company.thumbnailUrl;
+        } else if (company.logoUrl && !company.logoUrl.startsWith("data:")) {
+          ogImageCandidate = company.logoUrl;
+        } else {
+          ogImageCandidate = `https://api.microlink.io?url=${encodeURIComponent(`${baseUrl}/${company.username}`)}&screenshot=true&embed=screenshot.url`;
+        }
+        image = ogImageCandidate || siteLogo || `${baseUrl}/default-thumb.png`;
       }
 
-      // Guard against base64 logos since social scrapers cannot render base64 in metadata og:image
+      // Guard against base64 logos/thumbnails since social scrapers cannot render base64 in metadata og:image
       if (image && image.startsWith("data:")) {
         const screenshotUrl = `https://api.microlink.io?url=${encodeURIComponent(`${baseUrl}/${company.username || cleanPath}`)}&screenshot=true&embed=screenshot.url`;
-        image = company?.thumbnailUrl || screenshotUrl || `${baseUrl}/default-thumb.png`;
+        image = screenshotUrl || `${baseUrl}/default-thumb.png`;
       }
 
       // Safe character escaping for HTML attributes
