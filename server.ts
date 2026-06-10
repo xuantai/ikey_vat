@@ -748,120 +748,126 @@ app.post("/api/scan-image", async (req, res) => {
 // ==================== VITE MIDDLEWARE SETUP ====================
 
 async function startServer() {
-  if (process.env.NODE_ENV !== "production") {
-    console.log("Starting server in DEVELOPMENT mode with Vite Middleware...");
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: "spa",
-    });
-    app.use(vite.middlewares);
-  } else {
-    console.log("Starting server in PRODUCTION mode...");
-    const distPath = path.join(process.cwd(), "dist");
-    
-    // Serve static frontend assets
-    app.use(express.static(distPath));
-    
-    // Handles Vite single-page application fallback for route path routing with dynamic Open Graph (OG) metadata injection for Zalo/FB sharing
-    app.get("*", async (req, res, next) => {
-      // Bypass APIs
-      if (req.path.startsWith("/api/")) {
-        return next();
-      }
+  let viteInstance: any = null;
 
-      // Read global settings for fallback
-      let siteTitle = "Tạo trang thông tin xuất hóa đơn VAT";
-      let siteSubtitle = "Công cụ tạo trang thông tin chuyển khoản và xuất hóa đơn VAT nhanh chóng";
-      let siteLogo = "";
-      let globalSeoTitle = "";
-      let globalBaseUrl = "";
+  const handleDynamicHtml = async (req: any, res: any, next: any) => {
+    // Bypass APIs, assets or requests with extension
+    if (req.path.startsWith("/api/") || req.path.includes(".")) {
+      return next();
+    }
+
+    // Read global settings for fallback
+    let siteTitle = "Tạo trang thông tin xuất hóa đơn VAT";
+    let siteSubtitle = "Công cụ tạo trang thông tin chuyển khoản và xuất hóa đơn VAT nhanh chóng";
+    let siteLogo = "";
+    let globalSeoTitle = "";
+    let globalBaseUrl = "";
+    
+    try {
+      const settingsRef = doc(db, "settings", "global");
+      const settingsSnap = await getDoc(settingsRef);
+      if (settingsSnap.exists()) {
+        const val = settingsSnap.data();
+        siteTitle = val.siteTitle || siteTitle;
+        siteSubtitle = val.siteSubtitle || siteSubtitle;
+        siteLogo = val.siteLogo || siteLogo;
+        globalSeoTitle = val.globalSeoTitle || globalSeoTitle;
+        globalBaseUrl = val.globalBaseUrl || globalBaseUrl;
+      }
+    } catch (e) {
+      console.error("Failed to read global settings for dynamic metadata:", e);
+    }
+
+    const host = req.get("host") || "";
+    const protocol = (req.headers["x-forwarded-proto"] as string) || req.protocol || "http";
+    const baseUrl = globalBaseUrl ? globalBaseUrl.replace(/\/$/, "") : `${protocol}://${host}`;
+
+    // Recognize potential username
+    const cleanPath = req.path.replace(/^\//, "").split("/")[0].trim();
+    const isPotentialUsername = cleanPath && !cleanPath.includes(".") && !["api", "admin", "assets", "favicon"].includes(cleanPath.toLowerCase());
+
+    let company: CompanyInfo | null = null;
+    
+    // 1) Search first to see if any company matches customDomain === host
+    try {
+      const companies = await getCompanies();
+      company = companies.find((c) => {
+        if (!c.customDomain) return false;
+        const cd = c.customDomain.toLowerCase().trim();
+        const hn = host.toLowerCase().trim().split(":")[0];
+        return cd === hn || cd === `www.${hn}` || `www.${cd}` === hn;
+      }) || null;
+    } catch (err) {
+      console.error("Failed to query companies by custom domain:", err);
+    }
+
+    // 2) Fallback to path username if not resolved via custom domain
+    if (!company && isPotentialUsername) {
+      try {
+        company = await getCompanyByUsername(cleanPath.toLowerCase());
+      } catch (err) {
+        console.error(`Failed to fetch company metadata for "${cleanPath}":`, err);
+      }
+    }
+
+    let title = globalSeoTitle || siteTitle;
+    let description = siteSubtitle;
+    let image = siteLogo || `${baseUrl}/default-thumb.png`;
+    const ogUrl = `${baseUrl}${req.originalUrl}`;
+
+    if (company) {
+      title = company.websiteTitle || `${company.companyName} - Thông tin xuất hóa đơn`;
+      const companyDetails = [];
+      if (company.taxCode) companyDetails.push(`Mã số thuế: ${company.taxCode}`);
+      if (company.address) companyDetails.push(`Địa chỉ: ${company.address}`);
+      if (company.phone) companyDetails.push(`SĐT: ${company.phone}`);
+      if (company.email) companyDetails.push(`Email: ${company.email}`);
       
-      try {
-        const settingsRef = doc(db, "settings", "global");
-        const settingsSnap = await getDoc(settingsRef);
-        if (settingsSnap.exists()) {
-          const val = settingsSnap.data();
-          siteTitle = val.siteTitle || siteTitle;
-          siteSubtitle = val.siteSubtitle || siteSubtitle;
-          siteLogo = val.siteLogo || siteLogo;
-          globalSeoTitle = val.globalSeoTitle || globalSeoTitle;
-          globalBaseUrl = val.globalBaseUrl || globalBaseUrl;
-        }
-      } catch (e) {
-        console.error("Failed to read global settings for dynamic metadata:", e);
+      description = `Chi tiết thông tin xuất hóa đơn VAT và tài khoản nhận thanh toán của ${company.companyName}. ${companyDetails.join(". ")}`;
+      
+      // Prioritize custom thumbnail or company logo (non-base64), fallback to pixel-perfect screenshot
+      let ogImageCandidate = "";
+      if (company.thumbnailUrl && !company.thumbnailUrl.startsWith("data:")) {
+        ogImageCandidate = company.thumbnailUrl;
+      } else if (company.logoUrl && !company.logoUrl.startsWith("data:")) {
+        ogImageCandidate = company.logoUrl;
+      } else {
+        ogImageCandidate = `https://api.microlink.io?url=${encodeURIComponent(`${baseUrl}/${company.username}`)}&screenshot=true&embed=screenshot.url`;
       }
+      image = ogImageCandidate || siteLogo || `${baseUrl}/default-thumb.png`;
+    }
 
-      const host = req.get("host") || "";
-      const protocol = (req.headers["x-forwarded-proto"] as string) || req.protocol || "http";
-      const baseUrl = globalBaseUrl ? globalBaseUrl.replace(/\/$/, "") : `${protocol}://${host}`;
+    // Guard against base64 logos/thumbnails since social scrapers cannot render base64 in metadata og:image
+    if (image && image.startsWith("data:")) {
+      const screenshotUrl = `https://api.microlink.io?url=${encodeURIComponent(`${baseUrl}/${company?.username || cleanPath}`)}&screenshot=true&embed=screenshot.url`;
+      image = screenshotUrl || `${baseUrl}/default-thumb.png`;
+    }
 
-      // Recognize potential username
-      const cleanPath = req.path.replace(/^\//, "").split("/")[0].trim();
-      const isPotentialUsername = cleanPath && !cleanPath.includes(".") && !["api", "admin", "assets", "favicon"].includes(cleanPath.toLowerCase());
+    // Safe character escaping for HTML attributes
+    const escapeHtmlAttr = (str: string) => {
+      return (str || "")
+        .replace(/&/g, "&amp;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+    };
 
-      let company: CompanyInfo | null = null;
-      if (isPotentialUsername) {
-        try {
-          company = await getCompanyByUsername(cleanPath.toLowerCase());
-        } catch (err) {
-          console.error(`Failed to fetch company metadata for "${cleanPath}":`, err);
-        }
-      }
+    const escapedTitle = escapeHtmlAttr(title);
+    const escapedDesc = escapeHtmlAttr(description);
+    const escapedImage = escapeHtmlAttr(image);
+    const escapedUrl = escapeHtmlAttr(ogUrl);
 
-      let title = globalSeoTitle || siteTitle;
-      let description = siteSubtitle;
-      let image = siteLogo || `${baseUrl}/default-thumb.png`;
-      const ogUrl = `${baseUrl}${req.originalUrl}`;
+    try {
+      const isProd = process.env.NODE_ENV === "production";
+      const templatePath = isProd 
+        ? path.join(process.cwd(), "dist", "index.html")
+        : path.join(process.cwd(), "index.html");
 
-      if (isPotentialUsername && company) {
-        title = company.websiteTitle || `${company.companyName} - Thông tin xuất hóa đơn`;
-        const companyDetails = [];
-        if (company.taxCode) companyDetails.push(`Mã số thuế: ${company.taxCode}`);
-        if (company.address) companyDetails.push(`Địa chỉ: ${company.address}`);
-        if (company.phone) companyDetails.push(`SĐT: ${company.phone}`);
-        if (company.email) companyDetails.push(`Email: ${company.email}`);
-        
-        description = `Chi tiết thông tin xuất hóa đơn VAT và tài khoản nhận thanh toán của ${company.companyName}. ${companyDetails.join(". ")}`;
-        
-        // Prioritize custom thumbnail or company logo (non-base64), fallback to pixel-perfect screenshot
-        let ogImageCandidate = "";
-        if (company.thumbnailUrl && !company.thumbnailUrl.startsWith("data:")) {
-          ogImageCandidate = company.thumbnailUrl;
-        } else if (company.logoUrl && !company.logoUrl.startsWith("data:")) {
-          ogImageCandidate = company.logoUrl;
-        } else {
-          ogImageCandidate = `https://api.microlink.io?url=${encodeURIComponent(`${baseUrl}/${company.username}`)}&screenshot=true&embed=screenshot.url`;
-        }
-        image = ogImageCandidate || siteLogo || `${baseUrl}/default-thumb.png`;
-      }
+      if (fs.existsSync(templatePath)) {
+        let html = fs.readFileSync(templatePath, "utf8");
 
-      // Guard against base64 logos/thumbnails since social scrapers cannot render base64 in metadata og:image
-      if (image && image.startsWith("data:")) {
-        const screenshotUrl = `https://api.microlink.io?url=${encodeURIComponent(`${baseUrl}/${company.username || cleanPath}`)}&screenshot=true&embed=screenshot.url`;
-        image = screenshotUrl || `${baseUrl}/default-thumb.png`;
-      }
-
-      // Safe character escaping for HTML attributes
-      const escapeHtmlAttr = (str: string) => {
-        return (str || "")
-          .replace(/&/g, "&amp;")
-          .replace(/"/g, "&quot;")
-          .replace(/'/g, "&#039;")
-          .replace(/</g, "&lt;")
-          .replace(/>/g, "&gt;");
-      };
-
-      const escapedTitle = escapeHtmlAttr(title);
-      const escapedDesc = escapeHtmlAttr(description);
-      const escapedImage = escapeHtmlAttr(image);
-      const escapedUrl = escapeHtmlAttr(ogUrl);
-
-      try {
-        const indexPath = path.join(distPath, "index.html");
-        if (fs.existsSync(indexPath)) {
-          let html = fs.readFileSync(indexPath, "utf8");
-
-          const metaSnippet = `
+        const metaSnippet = `
     <title>${escapedTitle}</title>
     <meta name="description" content="${escapedDesc}" />
     <meta property="og:title" content="${escapedTitle}" />
@@ -873,19 +879,75 @@ async function startServer() {
     <meta name="twitter:title" content="${escapedTitle}" />
     <meta name="twitter:description" content="${escapedDesc}" />
     <meta name="twitter:image" content="${escapedImage}" />
-          `.trim();
+        `.trim();
 
-          // Replace standard <title> tag with full dynamic SEO snippet
-          html = html.replace(/<title>.*?<\/title>/, metaSnippet);
+        // Replace standard <title> tag with full dynamic SEO snippet
+        html = html.replace(/<title>.*?<\/title>/, metaSnippet);
 
-          res.setHeader("Content-Type", "text/html; charset=utf-8");
-          return res.send(html);
+        if (!isProd && viteInstance) {
+          html = await viteInstance.transformIndexHtml(req.originalUrl, html);
         }
-      } catch (err) {
-        console.error("Error generating dynamic metatags for index.html:", err);
+
+        res.setHeader("Content-Type", "text/html; charset=utf-8");
+        res.setHeader("X-Debug-Dynamic", "true");
+        return res.send(html);
+      }
+    } catch (err) {
+      console.error("Error generating dynamic metatags for index.html:", err);
+    }
+
+    if (process.env.NODE_ENV === "production") {
+      res.sendFile(path.join(process.cwd(), "dist", "index.html"));
+    } else {
+      return next();
+    }
+  };
+
+  if (process.env.NODE_ENV !== "production") {
+    console.log("Starting server in DEVELOPMENT mode with Vite Middleware...");
+    viteInstance = await createViteServer({
+      server: { middlewareMode: true },
+      appType: "spa",
+    });
+
+    // Register dynamic SEO metadata check before Vite middleware so it hits HTML requests first
+    app.get("*", async (req, res, next) => {
+      // Bypass API paths
+      if (req.path.startsWith("/api/")) {
+        return next();
+      }
+      // Bypass standard file assets with extensions
+      if (req.path.includes(".")) {
+        return next();
+      }
+      // Bypass Vite-specific dev asset routing paths
+      const isVitePath = req.path.startsWith("/@") || 
+                         req.path.startsWith("/node_modules/") || 
+                         req.path.startsWith("/src/") ||
+                         req.path.includes("__vite_ping");
+      
+      if (isVitePath) {
+        return next();
       }
 
-      res.sendFile(path.join(distPath, "index.html"));
+      // Serve all other page routing paths (and scraper user-agents) with dynamic SEO metadata HTML
+      return handleDynamicHtml(req, res, next);
+    });
+
+    app.use(viteInstance.middlewares);
+  } else {
+    console.log("Starting server in PRODUCTION mode...");
+    const distPath = path.join(process.cwd(), "dist");
+    
+    // Serve static frontend assets
+    app.use(express.static(distPath));
+    
+    // Handles Vite single-page application fallback for route path routing with dynamic Open Graph (OG) metadata injection for Zalo/FB sharing
+    app.get("*", async (req, res, next) => {
+      if (req.path.startsWith("/api/")) {
+        return next();
+      }
+      return handleDynamicHtml(req, res, next);
     });
   }
 

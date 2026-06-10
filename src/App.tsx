@@ -327,6 +327,13 @@ export default function App() {
 
   // Dynamically synchronize Title, Favicon, and Thumbnail based on current view route
   useEffect(() => {
+    // Return early if we are still doing the initial routing load or fetching the profile.
+    // This maintains the server-side pre-rendered dynamic SEO title and tags without
+    // any intermediate "Loading state" flash resetting the browser/crawler title.
+    if (isInitialRouteLoading || loading) {
+      return;
+    }
+
     if (route === "view" && activeCompany) {
       // 1. Title: Tên công ty - Thông Tin Hóa Đơn VAT (for optimal tab branding)
       const companyTitle = `${activeCompany.companyName || "Công ty"} - Thông Tin Hóa Đơn VAT`;
