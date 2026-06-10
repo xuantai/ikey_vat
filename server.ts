@@ -228,6 +228,46 @@ app.get("/api/companies/:username", async (req, res) => {
   }
 });
 
+// 3b. Serve company logo/thumbnail as direct image for SEO metadata if base64 or URL
+app.get("/api/companies/:username/logo.png", async (req, res) => {
+  const username = req.params.username.toLowerCase().trim();
+  try {
+    const company = await getCompanyByUsername(username);
+    if (!company) {
+      return res.status(404).send("Company not found");
+    }
+
+    // Determine the source image (thumbnailUrl or logoUrl)
+    let rawImg = company.thumbnailUrl || company.logoUrl;
+    
+    if (!rawImg) {
+      return res.redirect("/favicon.ico");
+    }
+
+    if (rawImg.startsWith("data:")) {
+      const match = rawImg.match(/^data:([^;]+);base64,(.*)$/);
+      if (match) {
+        const contentType = match[1];
+        const base64Data = match[2];
+        const imgBuffer = Buffer.from(base64Data, "base64");
+        res.setHeader("Content-Type", contentType);
+        res.setHeader("Cache-Control", "public, max-age=86400"); // Cache for 1 day
+        return res.send(imgBuffer);
+      }
+    }
+
+    // If it's already an external URL, redirect to it
+    if (rawImg.startsWith("http://") || rawImg.startsWith("https://")) {
+      return res.redirect(rawImg);
+    }
+
+    return res.redirect("/favicon.ico");
+  } catch (err) {
+    console.error("Error serving company logo:", err);
+    return res.status(500).send("Internal server error");
+  }
+});
+
 // 4. Create new company profile
 app.post("/api/companies", async (req, res) => {
   const payload: Partial<CompanyInfo> = req.body;
@@ -825,19 +865,17 @@ async function startServer() {
       
       description = `Chi tiết thông tin xuất hóa đơn VAT và tài khoản nhận thanh toán của ${company.companyName}. ${companyDetails.join(". ")}`;
       
-      // Prioritize custom thumbnail or company logo (non-base64), fallback to pixel-perfect screenshot
+      // Prioritize serving company's customized/uploaded assets via our direct raw image endpoint
       let ogImageCandidate = "";
-      if (company.thumbnailUrl && !company.thumbnailUrl.startsWith("data:")) {
-        ogImageCandidate = company.thumbnailUrl;
-      } else if (company.logoUrl && !company.logoUrl.startsWith("data:")) {
-        ogImageCandidate = company.logoUrl;
+      if (company.thumbnailUrl || company.logoUrl) {
+        ogImageCandidate = `${baseUrl}/api/companies/${company.username}/logo.png`;
       } else {
         ogImageCandidate = `https://api.microlink.io?url=${encodeURIComponent(`${baseUrl}/${company.username}`)}&screenshot=true&embed=screenshot.url`;
       }
       image = ogImageCandidate || siteLogo || `${baseUrl}/default-thumb.png`;
     }
 
-    // Guard against base64 logos/thumbnails since social scrapers cannot render base64 in metadata og:image
+    // Guard against base64 logos/thumbnails for global site level since social scrapers cannot render base64 in metadata og:image
     if (image && image.startsWith("data:")) {
       const screenshotUrl = `https://api.microlink.io?url=${encodeURIComponent(`${baseUrl}/${company?.username || cleanPath}`)}&screenshot=true&embed=screenshot.url`;
       image = screenshotUrl || `${baseUrl}/default-thumb.png`;
