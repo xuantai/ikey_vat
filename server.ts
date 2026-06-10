@@ -762,12 +762,121 @@ async function startServer() {
     // Serve static frontend assets
     app.use(express.static(distPath));
     
-    // Handles Vite single-page application fallback for route path routing
-    app.get("*", (req, res, next) => {
+    // Handles Vite single-page application fallback for route path routing with dynamic Open Graph (OG) metadata injection for Zalo/FB sharing
+    app.get("*", async (req, res, next) => {
       // Bypass APIs
       if (req.path.startsWith("/api/")) {
         return next();
       }
+
+      // Read global settings for fallback
+      let siteTitle = "Tạo trang thông tin xuất hóa đơn VAT";
+      let siteSubtitle = "Công cụ tạo trang thông tin chuyển khoản và xuất hóa đơn VAT nhanh chóng";
+      let siteLogo = "";
+      let globalSeoTitle = "";
+      let globalBaseUrl = "";
+      
+      try {
+        const settingsRef = doc(db, "settings", "global");
+        const settingsSnap = await getDoc(settingsRef);
+        if (settingsSnap.exists()) {
+          const val = settingsSnap.data();
+          siteTitle = val.siteTitle || siteTitle;
+          siteSubtitle = val.siteSubtitle || siteSubtitle;
+          siteLogo = val.siteLogo || siteLogo;
+          globalSeoTitle = val.globalSeoTitle || globalSeoTitle;
+          globalBaseUrl = val.globalBaseUrl || globalBaseUrl;
+        }
+      } catch (e) {
+        console.error("Failed to read global settings for dynamic metadata:", e);
+      }
+
+      const host = req.get("host") || "";
+      const protocol = (req.headers["x-forwarded-proto"] as string) || req.protocol || "http";
+      const baseUrl = globalBaseUrl ? globalBaseUrl.replace(/\/$/, "") : `${protocol}://${host}`;
+
+      // Recognize potential username
+      const cleanPath = req.path.replace(/^\//, "").split("/")[0].trim();
+      const isPotentialUsername = cleanPath && !cleanPath.includes(".") && !["api", "admin", "assets", "favicon"].includes(cleanPath.toLowerCase());
+
+      let company: CompanyInfo | null = null;
+      if (isPotentialUsername) {
+        try {
+          company = await getCompanyByUsername(cleanPath.toLowerCase());
+        } catch (err) {
+          console.error(`Failed to fetch company metadata for "${cleanPath}":`, err);
+        }
+      }
+
+      let title = globalSeoTitle || siteTitle;
+      let description = siteSubtitle;
+      let image = siteLogo || `${baseUrl}/default-thumb.png`;
+      const ogUrl = `${baseUrl}${req.originalUrl}`;
+
+      if (isPotentialUsername && company) {
+        title = `${company.companyName} - Thông Tin Xuất Hóa Đơn và Chuyển Khoản VAT`;
+        const companyDetails = [];
+        if (company.taxCode) companyDetails.push(`Mã số thuế: ${company.taxCode}`);
+        if (company.address) companyDetails.push(`Địa chỉ: ${company.address}`);
+        if (company.phone) companyDetails.push(`SĐT: ${company.phone}`);
+        if (company.email) companyDetails.push(`Email: ${company.email}`);
+        
+        description = `Chi tiết thông tin xuất hóa đơn VAT và tài khoản nhận thanh toán của ${company.companyName}. ${companyDetails.join(". ")}`;
+        
+        const screenshotUrl = `https://api.microlink.io?url=${encodeURIComponent(`${baseUrl}/${company.username}`)}&screenshot=true&embed=screenshot.url`;
+        image = company.thumbnailUrl || company.logoUrl || screenshotUrl || siteLogo || `${baseUrl}/default-thumb.png`;
+      }
+
+      // Guard against base64 logos since social scrapers cannot render base64 in metadata og:image
+      if (image && image.startsWith("data:")) {
+        const screenshotUrl = `https://api.microlink.io?url=${encodeURIComponent(`${baseUrl}/${company.username || cleanPath}`)}&screenshot=true&embed=screenshot.url`;
+        image = company?.thumbnailUrl || screenshotUrl || `${baseUrl}/default-thumb.png`;
+      }
+
+      // Safe character escaping for HTML attributes
+      const escapeHtmlAttr = (str: string) => {
+        return (str || "")
+          .replace(/&/g, "&amp;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#039;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;");
+      };
+
+      const escapedTitle = escapeHtmlAttr(title);
+      const escapedDesc = escapeHtmlAttr(description);
+      const escapedImage = escapeHtmlAttr(image);
+      const escapedUrl = escapeHtmlAttr(ogUrl);
+
+      try {
+        const indexPath = path.join(distPath, "index.html");
+        if (fs.existsSync(indexPath)) {
+          let html = fs.readFileSync(indexPath, "utf8");
+
+          const metaSnippet = `
+    <title>${escapedTitle}</title>
+    <meta name="description" content="${escapedDesc}" />
+    <meta property="og:title" content="${escapedTitle}" />
+    <meta property="og:description" content="${escapedDesc}" />
+    <meta property="og:image" content="${escapedImage}" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="${escapedUrl}" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="${escapedTitle}" />
+    <meta name="twitter:description" content="${escapedDesc}" />
+    <meta name="twitter:image" content="${escapedImage}" />
+          `.trim();
+
+          // Replace standard <title> tag with full dynamic SEO snippet
+          html = html.replace(/<title>.*?<\/title>/, metaSnippet);
+
+          res.setHeader("Content-Type", "text/html; charset=utf-8");
+          return res.send(html);
+        }
+      } catch (err) {
+        console.error("Error generating dynamic metatags for index.html:", err);
+      }
+
       res.sendFile(path.join(distPath, "index.html"));
     });
   }
