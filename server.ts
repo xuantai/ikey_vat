@@ -1,4 +1,5 @@
 import express from "express";
+import compression from "compression";
 import path from "path";
 import fs from "fs";
 import { createServer as createViteServer } from "vite";
@@ -8,15 +9,39 @@ import { CompanyInfo } from "./src/types";
 import https from "node:https";
 
 const app = express();
-const PORT = 3000;
+const PORT = Number(process.env.PORT || 3000);
 const searchCache = new Map<string, any>();
 const lookupCache = new Map<string, any>();
+
+const METADATA_CACHE_TTL_MS = 60_000;
+const metadataCache = new Map<string, { value: any; expiresAt: number }>();
+
+function getCachedMetadata<T>(key: string): T | null {
+  const cached = metadataCache.get(key);
+  if (!cached || cached.expiresAt <= Date.now()) {
+    metadataCache.delete(key);
+    return null;
+  }
+  return cached.value as T;
+}
+
+function setCachedMetadata<T>(key: string, value: T): T {
+  metadataCache.set(key, { value, expiresAt: Date.now() + METADATA_CACHE_TTL_MS });
+  return value;
+}
+
+function invalidateMetadataCache(): void {
+  metadataCache.clear();
+}
 
 // Administration Credentials Configuration (can be modified directly here)
 const ADMIN_CONFIG = {
   username: "admin",
   password: "123321"
 };
+
+// Compress textual API and HTML responses before they leave the origin.
+app.use(compression());
 
 // Body parser with 10MB limit to safely support base64 logos
 app.use(express.json({ limit: "10mb" }));
@@ -76,6 +101,9 @@ function handleFirestoreError(error: unknown, operationType: OperationType, path
 
 // Data fetching helper functions
 async function getCompanies(): Promise<CompanyInfo[]> {
+  const cached = getCachedMetadata<CompanyInfo[]>("companies:all");
+  if (cached) return cached;
+
   const pathStr = "companies";
   try {
     const colRef = collection(db, pathStr);
@@ -84,7 +112,7 @@ async function getCompanies(): Promise<CompanyInfo[]> {
     snapshot.forEach((d) => {
       result.push(d.data() as CompanyInfo);
     });
-    return result;
+    return setCachedMetadata("companies:all", result);
   } catch (error) {
     handleFirestoreError(error, OperationType.LIST, pathStr);
     return [];
@@ -92,17 +120,35 @@ async function getCompanies(): Promise<CompanyInfo[]> {
 }
 
 async function getCompanyByUsername(username: string): Promise<CompanyInfo | null> {
+  const cacheKey = `companies:${username}`;
+  const cached = getCachedMetadata<CompanyInfo | null>(cacheKey);
+  if (cached !== null) return cached;
+
   const pathStr = `companies/${username}`;
   try {
     const docRef = doc(db, "companies", username);
     const snap = await getDoc(docRef);
-    if (snap.exists()) {
-      return snap.data() as CompanyInfo;
-    }
-    return null;
+    const company = snap.exists() ? (snap.data() as CompanyInfo) : null;
+    return setCachedMetadata(cacheKey, company);
   } catch (error) {
     handleFirestoreError(error, OperationType.GET, pathStr);
     return null;
+  }
+}
+
+async function getGlobalSettings(): Promise<Record<string, any>> {
+  const cached = getCachedMetadata<Record<string, any>>("settings:global");
+  if (cached) return cached;
+
+  const pathStr = "settings/global";
+  try {
+    const settingsRef = doc(db, "settings", "global");
+    const settingsSnap = await getDoc(settingsRef);
+    const settings = settingsSnap.exists() ? settingsSnap.data() : {};
+    return setCachedMetadata("settings:global", settings);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.GET, pathStr);
+    return {};
   }
 }
 
@@ -111,6 +157,7 @@ async function saveCompany(company: CompanyInfo): Promise<void> {
   try {
     const docRef = doc(db, "companies", company.username);
     await setDoc(docRef, company);
+    invalidateMetadataCache();
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, pathStr);
   }
@@ -121,6 +168,7 @@ async function deleteCompany(username: string): Promise<void> {
   try {
     const docRef = doc(db, "companies", username);
     await deleteDoc(docRef);
+    invalidateMetadataCache();
   } catch (error) {
     handleFirestoreError(error, OperationType.DELETE, pathStr);
   }
@@ -136,12 +184,7 @@ app.get("/api/health", (req, res) => {
 // System Settings API endpoints
 app.get("/api/system-settings", async (req, res) => {
   try {
-    const docRef = doc(db, "settings", "global");
-    const snap = await getDoc(docRef);
-    if (snap.exists()) {
-      return res.json({ success: true, data: snap.data() });
-    }
-    // Default system settings structure if never saved
+    const settings = await getGlobalSettings();
     return res.json({
       success: true,
       data: {
@@ -153,8 +196,9 @@ app.get("/api/system-settings", async (req, res) => {
         footerText: "",
         headerLink: "",
         footerLink: "",
-        footerSecondaryLinks: []
-      }
+        footerSecondaryLinks: [],
+        ...settings,
+      },
     });
   } catch (err) {
     console.error("Failed to get system settings", err);
@@ -167,6 +211,7 @@ app.post("/api/system-settings", async (req, res) => {
   try {
     const docRef = doc(db, "settings", "global");
     await setDoc(docRef, settings);
+    invalidateMetadataCache();
     res.json({ success: true, message: "Đã lưu cài đặt hệ thống thành công!" });
   } catch (err) {
     console.error("Failed to save system settings", err);
@@ -804,16 +849,12 @@ async function startServer() {
     let globalBaseUrl = "";
     
     try {
-      const settingsRef = doc(db, "settings", "global");
-      const settingsSnap = await getDoc(settingsRef);
-      if (settingsSnap.exists()) {
-        const val = settingsSnap.data();
-        siteTitle = val.siteTitle || siteTitle;
-        siteSubtitle = val.siteSubtitle || siteSubtitle;
-        siteLogo = val.siteLogo || siteLogo;
-        globalSeoTitle = val.globalSeoTitle || globalSeoTitle;
-        globalBaseUrl = val.globalBaseUrl || globalBaseUrl;
-      }
+      const val = await getGlobalSettings();
+      siteTitle = val.siteTitle || siteTitle;
+      siteSubtitle = val.siteSubtitle || siteSubtitle;
+      siteLogo = val.siteLogo || siteLogo;
+      globalSeoTitle = val.globalSeoTitle || globalSeoTitle;
+      globalBaseUrl = val.globalBaseUrl || globalBaseUrl;
     } catch (e) {
       console.error("Failed to read global settings for dynamic metadata:", e);
     }
@@ -927,7 +968,8 @@ async function startServer() {
         }
 
         res.setHeader("Content-Type", "text/html; charset=utf-8");
-        res.setHeader("X-Debug-Dynamic", "true");
+        res.setHeader("Cache-Control", "public, max-age=60, stale-while-revalidate=300");
+        res.setHeader("Vary", "Host, Accept-Encoding");
         return res.send(html);
       }
     } catch (err) {
@@ -978,7 +1020,11 @@ async function startServer() {
     const distPath = path.join(process.cwd(), "dist");
     
     // Serve static frontend assets
-    app.use(express.static(distPath));
+    app.use(express.static(distPath, {
+      maxAge: "1y",
+      immutable: true,
+      index: false,
+    }));
     
     // Handles Vite single-page application fallback for route path routing with dynamic Open Graph (OG) metadata injection for Zalo/FB sharing
     app.get("*", async (req, res, next) => {

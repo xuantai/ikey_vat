@@ -35,7 +35,6 @@ import {
 } from "lucide-react";
 import { CompanyInfo, BankConfig, ApiResponse } from "./types";
 import { VIETNAMESE_BANKS, PRESET_COLORS, SAMPLE_COMPANY } from "./data";
-import { toPng, toJpeg } from "html-to-image";
 
 const proxyImageUrl = (url) => {
   if (!url) return url;
@@ -685,6 +684,9 @@ export default function App() {
     showToast("Đang chuẩn bị ảnh tải về...", "info");
 
     try {
+      // Load the image-export library only after the user explicitly requests an export.
+      const { toJpeg } = await import("html-to-image");
+
       // 1. Enter capture mode to force solid, non-transparent rendering of all info elements
       setIsCapturing(true);
 
